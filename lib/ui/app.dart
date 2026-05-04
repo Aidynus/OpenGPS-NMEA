@@ -13,11 +13,33 @@ final _routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/',
-        builder: (context, state) => const MainScreen(),
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const MainScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(
+              opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+              child: child,
+            );
+          },
+          transitionDuration: Durations.medium1,
+          reverseTransitionDuration: Durations.medium1,
+        ),
       ),
       GoRoute(
         path: '/settings',
-        builder: (context, state) => const SettingsScreen(),
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const SettingsScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(
+              opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+              child: child,
+            );
+          },
+          transitionDuration: Durations.medium1,
+          reverseTransitionDuration: Durations.medium1,
+        ),
       ),
     ],
   );
