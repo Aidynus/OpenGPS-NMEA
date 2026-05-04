@@ -5,7 +5,7 @@ import 'package:opengps_nmea/domain/protocols/nmea/nmea_builder.dart';
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-/// Reference position matching the GPS2IP test vector:
+/// Reference position matching the known NMEA test vector:
 /// 48°25.95722′N, 017°00.27029′E, alt 159.4 m, spd 5.14444 m/s, hdg 84.4
 GpsPosition _referencePosition() => GpsPosition(
       latitude: 48.43262,

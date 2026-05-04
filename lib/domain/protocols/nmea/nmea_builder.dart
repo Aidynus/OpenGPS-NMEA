@@ -5,7 +5,7 @@ import 'package:opengps_nmea/domain/models/gps_position.dart';
 
 /// Builds NMEA 0183 sentences from a [GpsPosition] and [AppSettings].
 ///
-/// GPS2IP hardcodes many fields that iOS Core Location cannot provide
+/// OpenGPS-NMEA hardcodes many fields that iOS Core Location cannot provide
 /// (satellite IDs, HDOP, geoid separation, etc.). This builder replicates
 /// those exact hardcoded values so that downstream navigation software
 /// receives valid NMEA sentences.
