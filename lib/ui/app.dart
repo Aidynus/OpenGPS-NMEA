@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/providers/location_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'features/main/main_screen.dart';
 import 'features/settings/settings_screen.dart';
@@ -28,11 +29,12 @@ class OpenGpsNmeaApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(_routerProvider);
+    final settings = ref.watch(appSettingsProvider);
 
     return MaterialApp.router(
       title: 'OpenGPS-NMEA',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lowContrast,
+      theme: settings.highContrast ? AppTheme.highContrast : AppTheme.lowContrast,
       darkTheme: AppTheme.dark,
       routerConfig: router,
     );

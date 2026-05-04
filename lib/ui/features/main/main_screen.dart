@@ -235,7 +235,16 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 );
               },
               loading: () => const _LoadingRow(),
-              error: (_, _) => const SizedBox.shrink(),
+              error: (_, _) => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber, size: 16, color: Colors.orange),
+                    SizedBox(width: 8),
+                    Text('Network info unavailable', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                  ],
+                ),
+              ),
             ),
             if (settings.connectionMethodIndex == ConnectionMethodPreset.socket)
               _buildStatusRow('Port', settings.socketPort.toString()),
@@ -311,7 +320,7 @@ class _LoadingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return const SizedBox(
       height: 20,
-      child: Center(child: SizedBox.shrink()),
+      child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
     );
   }
 }
