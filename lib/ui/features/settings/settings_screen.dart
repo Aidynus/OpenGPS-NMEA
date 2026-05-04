@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
@@ -16,19 +17,83 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         children: [
           _GeneralSection(settings: settings, notifier: notifier),
-          const SizedBox(height: 8),
-          if (settings.protocolIndex == ProtocolPreset.nmea)
-            _NmeaSection(settings: settings, notifier: notifier),
-          if (settings.protocolIndex == ProtocolPreset.taip)
-            _TaipSection(settings: settings, notifier: notifier),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+          AnimatedSwitcher(
+            duration: Durations.short4,
+            child: settings.protocolIndex == ProtocolPreset.nmea
+                ? _NmeaSection(key: const ValueKey('nmea'), settings: settings, notifier: notifier)
+                : settings.protocolIndex == ProtocolPreset.taip
+                    ? _TaipSection(key: const ValueKey('taip'), settings: settings, notifier: notifier)
+                    : const SizedBox.shrink(key: ValueKey('none')),
+          ),
+          const SizedBox(height: 12),
           _ConnectionSection(settings: settings, notifier: notifier),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           _NetworkSection(settings: settings, notifier: notifier),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+}
+
+class _PasswordField extends StatefulWidget {
+  final String? value;
+  final ValueChanged<String> onChanged;
+
+  const _PasswordField({required this.value, required this.onChanged});
+
+  @override
+  State<_PasswordField> createState() => _PasswordFieldState();
+}
+
+class _PasswordFieldState extends State<_PasswordField> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value ?? '');
+  }
+
+  @override
+  void didUpdateWidget(_PasswordField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != oldWidget.value && !_controller.selection.isValid) {
+      _controller.text = widget.value ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          const Text('Lock with Password'),
+          const Spacer(),
+          SizedBox(
+            width: 140,
+            child: TextField(
+              obscureText: true,
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                hintText: 'Password',
+              ),
+              controller: _controller,
+              onChanged: widget.onChanged,
+            ),
+          ),
         ],
       ),
     );
@@ -119,28 +184,69 @@ class _GeneralSection extends StatelessWidget {
             value: settings.displayDecimalMinutes,
             onChanged: (v) => notifier.updateSingle((s) => s.copyWith(displayDecimalMinutes: v)),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(
-              children: [
-                const Text('Lock with Password'),
-                const Spacer(),
-                SizedBox(
-                  width: 140,
-                  child: TextField(
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                      hintText: 'Password',
-                    ),
-                    controller: TextEditingController(text: settings.passwordHash ?? ''),
-                    onChanged: (v) => notifier.updateSingle((s) => s.copyWith(
-                      passwordHash: v.isEmpty ? null : v,
-                    )),
-                  ),
-                ),
-              ],
+          _PasswordField(
+            value: settings.passwordHash,
+            onChanged: (v) => notifier.updateSingle((s) => s.copyWith(
+              passwordHash: v.isEmpty ? null : v,
+            )),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CustomGptxtField extends StatefulWidget {
+  final String? value;
+  final ValueChanged<String> onChanged;
+
+  const _CustomGptxtField({super.key, required this.value, required this.onChanged});
+
+  @override
+  State<_CustomGptxtField> createState() => _CustomGptxtFieldState();
+}
+
+class _CustomGptxtFieldState extends State<_CustomGptxtField> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value ?? '');
+  }
+
+  @override
+  void didUpdateWidget(_CustomGptxtField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != oldWidget.value && !_controller.selection.isValid) {
+      _controller.text = widget.value ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          const Text(' Custom Text'),
+          const Spacer(),
+          SizedBox(
+            width: 160,
+            child: TextField(
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                hintText: 'Device ID',
+              ),
+              controller: _controller,
+              onChanged: widget.onChanged,
             ),
           ),
         ],
@@ -153,7 +259,7 @@ class _NmeaSection extends StatelessWidget {
   final AppSettings settings;
   final AppSettingsNotifier notifier;
 
-  const _NmeaSection({required this.settings, required this.notifier});
+  const _NmeaSection({super.key, required this.settings, required this.notifier});
 
   @override
   Widget build(BuildContext context) {
@@ -216,30 +322,78 @@ class _NmeaSection extends StatelessWidget {
             value: settings.gptxtEnabled,
             onChanged: (v) => notifier.updateSingle((s) => s.copyWith(gptxtEnabled: v)),
           ),
-          if (settings.gptxtEnabled)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Row(
-                children: [
-                  const Text(' Custom Text'),
-                  const Spacer(),
-                  SizedBox(
-                    width: 160,
-                    child: TextField(
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                        hintText: 'Device ID',
-                      ),
-                      controller: TextEditingController(text: settings.customGptxt ?? ''),
-                      onChanged: (v) => notifier.updateSingle((s) => s.copyWith(
-                        customGptxt: v.isEmpty ? null : v,
-                      )),
-                    ),
-                  ),
-                ],
+          AnimatedSwitcher(
+            duration: Durations.short4,
+            child: settings.gptxtEnabled
+                ? _CustomGptxtField(
+                    key: const ValueKey('gptxt-field'),
+                    value: settings.customGptxt,
+                    onChanged: (v) => notifier.updateSingle((s) => s.copyWith(
+                      customGptxt: v.isEmpty ? null : v,
+                    )),
+                  )
+                : const SizedBox.shrink(key: ValueKey('gptxt-hidden')),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaipDeviceIdField extends StatefulWidget {
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  const _TaipDeviceIdField({required this.value, required this.onChanged});
+
+  @override
+  State<_TaipDeviceIdField> createState() => _TaipDeviceIdFieldState();
+}
+
+class _TaipDeviceIdFieldState extends State<_TaipDeviceIdField> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value);
+  }
+
+  @override
+  void didUpdateWidget(_TaipDeviceIdField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != oldWidget.value && !_controller.selection.isValid) {
+      _controller.text = widget.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          const Text('Device ID'),
+          const Spacer(),
+          SizedBox(
+            width: 100,
+            child: TextField(
+              maxLength: 4,
+              decoration: const InputDecoration(
+                isDense: true,
+                counterText: '',
+                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               ),
+              controller: _controller,
+              onChanged: widget.onChanged,
             ),
+          ),
         ],
       ),
     );
@@ -250,7 +404,7 @@ class _TaipSection extends StatelessWidget {
   final AppSettings settings;
   final AppSettingsNotifier notifier;
 
-  const _TaipSection({required this.settings, required this.notifier});
+  const _TaipSection({super.key, required this.settings, required this.notifier});
 
   @override
   Widget build(BuildContext context) {
@@ -268,27 +422,9 @@ class _TaipSection extends StatelessWidget {
             value: settings.taipAlEnabled,
             onChanged: (v) => notifier.updateSingle((s) => s.copyWith(taipAlEnabled: v)),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(
-              children: [
-                const Text('Device ID'),
-                const Spacer(),
-                SizedBox(
-                  width: 100,
-                  child: TextField(
-                    maxLength: 4,
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      counterText: '',
-                      contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                    ),
-                    controller: TextEditingController(text: settings.taipDeviceId),
-                    onChanged: (v) => notifier.updateSingle((s) => s.copyWith(taipDeviceId: v)),
-                  ),
-                ),
-              ],
-            ),
+          _TaipDeviceIdField(
+            value: settings.taipDeviceId,
+            onChanged: (v) => notifier.updateSingle((s) => s.copyWith(taipDeviceId: v)),
           ),
         ],
       ),
@@ -359,38 +495,63 @@ class _ConnectionSection extends StatelessWidget {
             onChanged: (v) => notifier.updateSingle((s) => s.copyWith(connectionMethodIndex: v)),
           ),
           const Divider(),
-          if (isSocket)
-            _NumberFieldRow(
-              label: 'Socket Port',
-              value: settings.socketPort,
-              onChanged: (v) => notifier.updateSingle((s) => s.copyWith(socketPort: v)),
-            ),
-          if (needsTargetIp)
-            _TextFieldRow(
-              label: 'Target IP',
-              value: settings.targetIpAddress,
-              onChanged: (v) => notifier.updateSingle((s) => s.copyWith(targetIpAddress: v)),
-            ),
-          if (needsTargetIp || isSocket)
-            _NumberFieldRow(
-              label: 'Target Port',
-              value: settings.targetPort,
-              onChanged: (v) => notifier.updateSingle((s) => s.copyWith(targetPort: v)),
-            ),
-          if (isUdpMulticast)
-            _TextFieldRow(
-              label: 'Group Address',
-              value: settings.multicastGroupAddress,
-              onChanged: (v) => notifier.updateSingle((s) => s.copyWith(multicastGroupAddress: v)),
-            ),
-          if (isWebSocket)
-            _TextFieldRow(
-              label: 'Server URL',
-              value: settings.websocketUrl ?? '',
-              onChanged: (v) => notifier.updateSingle((s) => s.copyWith(
-                websocketUrl: v.isEmpty ? null : v,
-              )),
-            ),
+          AnimatedSwitcher(
+            duration: Durations.short4,
+            child: isSocket
+                ? _NumberFieldRow(
+                    key: const ValueKey('socket-port'),
+                    label: 'Socket Port',
+                    value: settings.socketPort,
+                    onChanged: (v) => notifier.updateSingle((s) => s.copyWith(socketPort: v)),
+                  )
+                : const SizedBox.shrink(key: ValueKey('socket-port-hidden')),
+          ),
+          AnimatedSwitcher(
+            duration: Durations.short4,
+            child: needsTargetIp
+                ? _TextFieldRow(
+                    key: const ValueKey('target-ip'),
+                    label: 'Target IP',
+                    value: settings.targetIpAddress,
+                    onChanged: (v) => notifier.updateSingle((s) => s.copyWith(targetIpAddress: v)),
+                  )
+                : const SizedBox.shrink(key: ValueKey('target-ip-hidden')),
+          ),
+          AnimatedSwitcher(
+            duration: Durations.short4,
+            child: needsTargetIp || isSocket
+                ? _NumberFieldRow(
+                    key: const ValueKey('target-port'),
+                    label: 'Target Port',
+                    value: settings.targetPort,
+                    onChanged: (v) => notifier.updateSingle((s) => s.copyWith(targetPort: v)),
+                  )
+                : const SizedBox.shrink(key: ValueKey('target-port-hidden')),
+          ),
+          AnimatedSwitcher(
+            duration: Durations.short4,
+            child: isUdpMulticast
+                ? _TextFieldRow(
+                    key: const ValueKey('group-address'),
+                    label: 'Group Address',
+                    value: settings.multicastGroupAddress,
+                    onChanged: (v) => notifier.updateSingle((s) => s.copyWith(multicastGroupAddress: v)),
+                  )
+                : const SizedBox.shrink(key: ValueKey('group-address-hidden')),
+          ),
+          AnimatedSwitcher(
+            duration: Durations.short4,
+            child: isWebSocket
+                ? _TextFieldRow(
+                    key: const ValueKey('server-url'),
+                    label: 'Server URL',
+                    value: settings.websocketUrl ?? '',
+                    onChanged: (v) => notifier.updateSingle((s) => s.copyWith(
+                      websocketUrl: v.isEmpty ? null : v,
+                    )),
+                  )
+                : const SizedBox.shrink(key: ValueKey('server-url-hidden')),
+          ),
         ],
       ),
     );
@@ -433,12 +594,17 @@ class _NetworkSection extends StatelessWidget {
             groupValue: settings.networkIndex,
             onChanged: (v) => notifier.updateSingle((s) => s.copyWith(networkIndex: v)),
           ),
-          if (settings.networkIndex == NetworkPreset.ble)
-            _SwitchRow(
-              label: 'BLE Enabled',
-              value: settings.bleEnabled,
-              onChanged: (v) => notifier.updateSingle((s) => s.copyWith(bleEnabled: v)),
-            ),
+          AnimatedSwitcher(
+            duration: Durations.short4,
+            child: settings.networkIndex == NetworkPreset.ble
+                ? _SwitchRow(
+                    key: const ValueKey('ble-switch'),
+                    label: 'BLE Enabled',
+                    value: settings.bleEnabled,
+                    onChanged: (v) => notifier.updateSingle((s) => s.copyWith(bleEnabled: v)),
+                  )
+                : const SizedBox.shrink(key: ValueKey('ble-hidden')),
+          ),
         ],
       ),
     );
@@ -450,14 +616,17 @@ class _SwitchRow extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
 
-  const _SwitchRow({required this.label, required this.value, required this.onChanged});
+  const _SwitchRow({super.key, required this.label, required this.value, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
     return SwitchListTile(
       title: Text(label),
       value: value,
-      onChanged: onChanged,
+      onChanged: (v) {
+        HapticFeedback.lightImpact();
+        onChanged(v);
+      },
       dense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
     );
@@ -480,7 +649,7 @@ class _DropdownRow<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
           Text(label),
@@ -488,7 +657,10 @@ class _DropdownRow<T> extends StatelessWidget {
           DropdownButton<T>(
             value: value,
             items: items,
-            onChanged: onChanged,
+            onChanged: (v) {
+              HapticFeedback.lightImpact();
+              onChanged(v);
+            },
             underline: const SizedBox(),
             isDense: true,
           ),
@@ -518,28 +690,58 @@ class _RadioRow<T> extends StatelessWidget {
       value: value,
       groupValue: groupValue,
       onChanged: (v) {
-        if (v != null) onChanged(v);
+        if (v != null) {
+          HapticFeedback.lightImpact();
+          onChanged(v);
+        }
       },
       dense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
     );
   }
 }
 
-class _TextFieldRow extends StatelessWidget {
+class _TextFieldRow extends StatefulWidget {
   final String label;
   final String value;
   final ValueChanged<String> onChanged;
 
-  const _TextFieldRow({required this.label, required this.value, required this.onChanged});
+  const _TextFieldRow({super.key, required this.label, required this.value, required this.onChanged});
+
+  @override
+  State<_TextFieldRow> createState() => _TextFieldRowState();
+}
+
+class _TextFieldRowState extends State<_TextFieldRow> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value);
+  }
+
+  @override
+  void didUpdateWidget(_TextFieldRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != oldWidget.value && !_controller.selection.isValid) {
+      _controller.text = widget.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          Text(label),
+          Text(widget.label),
           const Spacer(),
           SizedBox(
             width: 160,
@@ -548,8 +750,8 @@ class _TextFieldRow extends StatelessWidget {
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               ),
-              controller: TextEditingController(text: value),
-              onChanged: onChanged,
+              controller: _controller,
+              onChanged: widget.onChanged,
             ),
           ),
         ],
@@ -558,20 +760,47 @@ class _TextFieldRow extends StatelessWidget {
   }
 }
 
-class _NumberFieldRow extends StatelessWidget {
+class _NumberFieldRow extends StatefulWidget {
   final String label;
   final int value;
   final ValueChanged<int> onChanged;
 
-  const _NumberFieldRow({required this.label, required this.value, required this.onChanged});
+  const _NumberFieldRow({super.key, required this.label, required this.value, required this.onChanged});
+
+  @override
+  State<_NumberFieldRow> createState() => _NumberFieldRowState();
+}
+
+class _NumberFieldRowState extends State<_NumberFieldRow> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value.toString());
+  }
+
+  @override
+  void didUpdateWidget(_NumberFieldRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != oldWidget.value && !_controller.selection.isValid) {
+      _controller.text = widget.value.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          Text(label),
+          Text(widget.label),
           const Spacer(),
           SizedBox(
             width: 100,
@@ -581,10 +810,10 @@ class _NumberFieldRow extends StatelessWidget {
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               ),
-              controller: TextEditingController(text: value.toString()),
+              controller: _controller,
               onChanged: (v) {
                 final parsed = int.tryParse(v);
-                if (parsed != null) onChanged(parsed);
+                if (parsed != null) widget.onChanged(parsed);
               },
             ),
           ),
