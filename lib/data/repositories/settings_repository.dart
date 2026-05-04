@@ -26,7 +26,7 @@ class SettingsRepository {
       _prefs.setInt('networkIndex', value);
 
   // Frequency
-  int get frequencyIndex => _prefs.getInt('frequencyIndex') ?? 1;
+  int get frequencyIndex => _prefs.getInt('frequencyIndex') ?? 2;
   Future<bool> setFrequencyIndex(int value) =>
       _prefs.setInt('frequencyIndex', value);
 
@@ -36,7 +36,7 @@ class SettingsRepository {
       _prefs.setInt('accuracyIndex', value);
 
   // Boolean settings
-  bool get operateInBackground => _prefs.getBool('operateInBackground') ?? true;
+  bool get operateInBackground => _prefs.getBool('operateInBackground') ?? false;
   Future<bool> setOperateInBackground(bool value) =>
       _prefs.setBool('operateInBackground', value);
 
@@ -74,7 +74,7 @@ class SettingsRepository {
 
   // Network targets
   String get targetIpAddress =>
-      _prefs.getString('targetIpAddress') ?? '192.168.1.100';
+      _prefs.getString('targetIpAddress') ?? '192.168.1.255';
   Future<bool> setTargetIpAddress(String value) =>
       _prefs.setString('targetIpAddress', value);
 
@@ -83,7 +83,7 @@ class SettingsRepository {
       _prefs.setInt('targetPort', value);
 
   String get multicastGroupAddress =>
-      _prefs.getString('multicastGroupAddress') ?? '239.192.1.1';
+      _prefs.getString('multicastGroupAddress') ?? '239.255.255.250';
   Future<bool> setMulticastGroupAddress(String value) =>
       _prefs.setString('multicastGroupAddress', value);
 
@@ -100,7 +100,7 @@ class SettingsRepository {
       value == null ? _prefs.remove('websocketUrl') : _prefs.setString('websocketUrl', value);
 
   // TAIP
-  String get taipDeviceId => _prefs.getString('taipDeviceId') ?? 'D001';
+  String get taipDeviceId => _prefs.getString('taipDeviceId') ?? '0000';
   Future<bool> setTaipDeviceId(String value) =>
       _prefs.setString('taipDeviceId', value);
 
@@ -108,7 +108,7 @@ class SettingsRepository {
   Future<bool> setTaipPvEnabled(bool value) =>
       _prefs.setBool('taipPvEnabled', value);
 
-  bool get taipAlEnabled => _prefs.getBool('taipAlEnabled') ?? true;
+  bool get taipAlEnabled => _prefs.getBool('taipAlEnabled') ?? false;
   Future<bool> setTaipAlEnabled(bool value) =>
       _prefs.setBool('taipAlEnabled', value);
 
@@ -124,12 +124,12 @@ class SettingsRepository {
 
   // Static threshold
   double get staticThresholdMeters =>
-      _prefs.getDouble('staticThresholdMeters') ?? 1.5;
+      _prefs.getDouble('staticThresholdMeters') ?? 0.5;
   Future<bool> setStaticThresholdMeters(double value) =>
       _prefs.setDouble('staticThresholdMeters', value);
 
   // NMEA message toggles
-  bool get ggaEnabled => _prefs.getBool('ggaEnabled') ?? false;
+  bool get ggaEnabled => _prefs.getBool('ggaEnabled') ?? true;
   Future<bool> setGgaEnabled(bool value) =>
       _prefs.setBool('ggaEnabled', value);
 
@@ -179,9 +179,9 @@ class SettingsRepository {
       setProtocolIndex(0),
       setConnectionMethodIndex(0),
       setNetworkIndex(0),
-      setFrequencyIndex(1),
+      setFrequencyIndex(2),
       setAccuracyIndex(0),
-      setOperateInBackground(true),
+      setOperateInBackground(false),
       setSendInOneTransmission(false),
       setHighContrast(false),
       setTrueNorth(false),
@@ -189,19 +189,19 @@ class SettingsRepository {
       setDisableWhenStatic(false),
       setDisplayDecimalMinutes(false),
       setPasswordHash(null),
-      setTargetIpAddress('192.168.1.100'),
+      setTargetIpAddress('192.168.1.255'),
       setTargetPort(11123),
-      setMulticastGroupAddress('239.192.1.1'),
+      setMulticastGroupAddress('239.255.255.250'),
       setSocketPort(11123),
       setWebsocketPort(8080),
       setWebsocketUrl(null),
-      setTaipDeviceId('D001'),
+      setTaipDeviceId('0000'),
       setTaipPvEnabled(true),
-      setTaipAlEnabled(true),
+      setTaipAlEnabled(false),
       setBleEnabled(false),
       setCustomGptxt(null),
-      setStaticThresholdMeters(1.5),
-      setGgaEnabled(false),
+      setStaticThresholdMeters(0.5),
+      setGgaEnabled(true),
       setGllEnabled(false),
       setGsaEnabled(false),
       setHdgEnabled(false),
