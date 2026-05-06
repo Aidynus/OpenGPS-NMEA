@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:opengps_nmea/domain/models/app_settings.dart';
 import 'package:opengps_nmea/domain/transmission/abstract_transmitter.dart';
 
@@ -49,7 +51,9 @@ class SocketTransmitter extends BaseTransmitter {
     decrementClientCount();
     try {
       client.destroy();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[SocketTransmitter] error destroying client: $e');
+    }
   }
 
   @override
@@ -60,7 +64,9 @@ class SocketTransmitter extends BaseTransmitter {
     for (final client in _clients) {
       try {
         client.destroy();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[SocketTransmitter] error destroying client on stop: $e');
+      }
     }
     _clients.clear();
     setClientCount(0);
@@ -81,7 +87,8 @@ class SocketTransmitter extends BaseTransmitter {
       try {
         client.add(bytes);
         await client.flush();
-      } catch (_) {
+      } catch (e) {
+        debugPrint('[SocketTransmitter] error sending to client: $e');
         deadClients.add(client);
       }
     }

@@ -1,5 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/constants/app_constants.dart';
+
 class SettingsRepository {
   final SharedPreferences _prefs;
 
@@ -36,7 +38,7 @@ class SettingsRepository {
       _prefs.setInt('accuracyIndex', value);
 
   // Boolean settings
-  bool get operateInBackground => _prefs.getBool('operateInBackground') ?? false;
+  bool get operateInBackground => _prefs.getBool('operateInBackground') ?? DefaultSettings.operateInBackground;
   Future<bool> setOperateInBackground(bool value) =>
       _prefs.setBool('operateInBackground', value);
 
@@ -74,24 +76,24 @@ class SettingsRepository {
 
   // Network targets
   String get targetIpAddress =>
-      _prefs.getString('targetIpAddress') ?? '192.168.1.255';
+      _prefs.getString('targetIpAddress') ?? DefaultSettings.defaultTargetIpAddress;
   Future<bool> setTargetIpAddress(String value) =>
       _prefs.setString('targetIpAddress', value);
 
-  int get targetPort => _prefs.getInt('targetPort') ?? 11123;
+  int get targetPort => _prefs.getInt('targetPort') ?? DefaultSettings.defaultPort;
   Future<bool> setTargetPort(int value) =>
       _prefs.setInt('targetPort', value);
 
   String get multicastGroupAddress =>
-      _prefs.getString('multicastGroupAddress') ?? '239.255.255.250';
+      _prefs.getString('multicastGroupAddress') ?? DefaultSettings.defaultMulticastAddress;
   Future<bool> setMulticastGroupAddress(String value) =>
       _prefs.setString('multicastGroupAddress', value);
 
-  int get socketPort => _prefs.getInt('socketPort') ?? 11123;
+  int get socketPort => _prefs.getInt('socketPort') ?? DefaultSettings.defaultPort;
   Future<bool> setSocketPort(int value) =>
       _prefs.setInt('socketPort', value);
 
-  int get websocketPort => _prefs.getInt('websocketPort') ?? 8080;
+  int get websocketPort => _prefs.getInt('websocketPort') ?? DefaultSettings.defaultWebsocketPort;
   Future<bool> setWebsocketPort(int value) =>
       _prefs.setInt('websocketPort', value);
 
@@ -100,7 +102,7 @@ class SettingsRepository {
       value == null ? _prefs.remove('websocketUrl') : _prefs.setString('websocketUrl', value);
 
   // TAIP
-  String get taipDeviceId => _prefs.getString('taipDeviceId') ?? '0000';
+  String get taipDeviceId => _prefs.getString('taipDeviceId') ?? DefaultSettings.defaultTaipDeviceId;
   Future<bool> setTaipDeviceId(String value) =>
       _prefs.setString('taipDeviceId', value);
 
@@ -124,7 +126,7 @@ class SettingsRepository {
 
   // Static threshold
   double get staticThresholdMeters =>
-      _prefs.getDouble('staticThresholdMeters') ?? 0.5;
+      _prefs.getDouble('staticThresholdMeters') ?? DefaultSettings.staticThresholdMeters;
   Future<bool> setStaticThresholdMeters(double value) =>
       _prefs.setDouble('staticThresholdMeters', value);
 
@@ -181,26 +183,26 @@ class SettingsRepository {
       setNetworkIndex(0),
       setFrequencyIndex(2),
       setAccuracyIndex(0),
-      setOperateInBackground(false),
-      setSendInOneTransmission(false),
+      setOperateInBackground(DefaultSettings.operateInBackground),
+      setSendInOneTransmission(DefaultSettings.sendInOneTransmission),
       setHighContrast(false),
       setTrueNorth(false),
       setOperateWhenTerminated(false),
       setDisableWhenStatic(false),
       setDisplayDecimalMinutes(false),
       setPasswordHash(null),
-      setTargetIpAddress('192.168.1.255'),
-      setTargetPort(11123),
-      setMulticastGroupAddress('239.255.255.250'),
-      setSocketPort(11123),
-      setWebsocketPort(8080),
+      setTargetIpAddress(DefaultSettings.defaultTargetIpAddress),
+      setTargetPort(DefaultSettings.defaultPort),
+      setMulticastGroupAddress(DefaultSettings.defaultMulticastAddress),
+      setSocketPort(DefaultSettings.defaultPort),
+      setWebsocketPort(DefaultSettings.defaultWebsocketPort),
       setWebsocketUrl(null),
-      setTaipDeviceId('0000'),
+      setTaipDeviceId(DefaultSettings.defaultTaipDeviceId),
       setTaipPvEnabled(true),
       setTaipAlEnabled(false),
       setBleEnabled(false),
       setCustomGptxt(null),
-      setStaticThresholdMeters(0.5),
+      setStaticThresholdMeters(DefaultSettings.staticThresholdMeters),
       setGgaEnabled(true),
       setGllEnabled(false),
       setGsaEnabled(false),

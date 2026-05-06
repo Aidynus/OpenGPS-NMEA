@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:opengps_nmea/domain/models/app_settings.dart';
 import 'package:opengps_nmea/domain/transmission/abstract_transmitter.dart';
 
@@ -73,7 +75,9 @@ class TcpClientTransmitter extends BaseTransmitter {
 
     try {
       await _socket?.close();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[TcpClientTransmitter] error closing socket: $e');
+    }
     _socket = null;
 
     setClientCount(0);

@@ -22,11 +22,11 @@ dependencies:
   # Location services
   geolocator: ^13.0.2
 
-  # Background execution
-  flutter_background_service: ^5.1.0
 
-  # BLE (Bluetooth Low Energy)
-  flutter_blue_plus: ^1.35.3
+
+
+
+
 
   # Persistent storage
   shared_preferences: ^2.3.4
@@ -38,14 +38,14 @@ dependencies:
   freezed_annotation: ^2.4.4
   json_annotation: ^4.9.0
 
-  # Network connectivity status
-  connectivity_plus: ^6.1.1
+
+
 
   # WebSocket support
   web_socket_channel: ^3.0.2
 
-  # Permission handling
-  permission_handler: ^11.3.1
+
+
 
 dev_dependencies:
   flutter_test:

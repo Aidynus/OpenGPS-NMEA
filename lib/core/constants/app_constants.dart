@@ -61,10 +61,28 @@ abstract class NetworkPreset {
   static const int ble = 3;
 }
 
+/// Single source of truth for all default app settings.
+///
+/// These values are referenced by [AppSettings.defaults()],
+/// [SettingsRepository] inline defaults, and [SettingsRepository.resetToDefaults()].
+/// Changing a value here updates it everywhere.
 abstract class DefaultSettings {
-  static const double staticThresholdMeters = 1.5;
+  // ── Operational ─────────────────────────────────────────────────────
+  static const bool operateInBackground = true;
+  static const bool sendInOneTransmission = false;
+
+  // ── Network ─────────────────────────────────────────────────────────
   static const int defaultPort = 11123;
-  static const String defaultMulticastAddress = '239.192.1.1';
-  static const int liteTimeoutSeconds = 240;
+  static const int defaultWebsocketPort = 8080;
+  static const String defaultMulticastAddress = '239.255.255.250';
+  static const String defaultTargetIpAddress = '192.168.1.255';
+
+  // ── TAIP ────────────────────────────────────────────────────────────
   static const String defaultTaipDeviceId = 'D001';
+
+  // ── GPS ─────────────────────────────────────────────────────────────
+  static const double staticThresholdMeters = 1.5;
+
+  // ── Timeouts ────────────────────────────────────────────────────────
+  static const int liteTimeoutSeconds = 240;
 }
