@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../core/constants/app_constants.dart';
@@ -55,7 +56,8 @@ class LocationService {
       }
       return permission == LocationPermission.always ||
           permission == LocationPermission.whileInUse;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[LocationService] permission check failed: $e');
       return false;
     }
   }
@@ -63,7 +65,8 @@ class LocationService {
   Future<bool> isLocationServiceEnabled() async {
     try {
       return await _geolocator.isLocationServiceEnabled();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[LocationService] service check failed: $e');
       return false;
     }
   }

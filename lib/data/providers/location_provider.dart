@@ -153,9 +153,31 @@ GpsPosition _positionToGpsPosition(Position p) {
   );
 }
 
+final locationPermissionErrorProvider = StateProvider<String?>((ref) => null);
+
 final positionStreamProvider = StreamProvider<GpsPosition>((ref) async* {
-  final settings = ref.watch(appSettingsProvider);
   final locationService = ref.watch(locationServiceProvider);
+
+  // Request location permission BEFORE starting the stream.
+  // On iOS, geolocator won't deliver positions until the user
+  // grants permission via the system dialog.
+  final hasPermission = await locationService.checkAndRequestPermission();
+  if (!hasPermission) {
+    ref.read(locationPermissionErrorProvider.notifier).state =
+        'Location permission denied. Grant access in Settings → OpenGPS-NMEA → Location.';
+    return;
+  }
+
+  final isEnabled = await locationService.isLocationServiceEnabled();
+  if (!isEnabled) {
+    ref.read(locationPermissionErrorProvider.notifier).state =
+        'Location services are disabled. Enable in device Settings → Privacy → Location Services.';
+    return;
+  }
+
+  ref.read(locationPermissionErrorProvider.notifier).state = null;
+
+  final settings = ref.watch(appSettingsProvider);
 
   final stream = locationService.getPositionStream(
     accuracyPreset: settings.accuracyIndex,
