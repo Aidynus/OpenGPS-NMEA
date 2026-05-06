@@ -210,6 +210,7 @@ class _PositionCardWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pos = ref.watch(lastKnownPositionProvider);
     final displayDecimalMinutes = ref.watch(appSettingsProvider.select((s) => s.displayDecimalMinutes));
+    final permissionError = ref.watch(locationPermissionErrorProvider);
     final hasPosition = pos != null && pos.hasFix;
 
     return Card(
@@ -231,48 +232,79 @@ class _PositionCardWidget extends ConsumerWidget {
             const Divider(),
             AnimatedSwitcher(
               duration: Durations.short4,
-              child: !hasPosition
-                  ? const Center(
-                      key: ValueKey('no-fix'),
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24),
-                        child: Text(
-                          'No Fix',
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
-                        ),
+              child: permissionError != null
+                  ? Padding(
+                      key: const ValueKey('permission-error'),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded,
+                              size: 32, color: Colors.orange),
+                          const SizedBox(height: 8),
+                          Text(
+                            permissionError,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                fontSize: 14, color: Colors.orange),
+                          ),
+                        ],
                       ),
                     )
-                  : Column(
-                      key: ValueKey('position-data'),
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SelectableText(
-                          displayDecimalMinutes
-                              ? '${decimalToDecimalMinutesLatitude(pos.latitude, 4)}\n${decimalToDecimalMinutesLongitude(pos.longitude, 4)}'
-                              : '${decimalToDmsLatitude(pos.latitude, 2)}\n${decimalToDmsLongitude(pos.longitude, 2)}',
-                          style: const TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
+                  : !hasPosition
+                      ? const Center(
+                          key: ValueKey('no-fix'),
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24),
+                            child: Text(
+                              'No Fix',
+                              style:
+                                  TextStyle(fontSize: 18, color: Colors.grey),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 12,
+                        )
+                      : Column(
+                          key: const ValueKey('position-data'),
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (pos.altitude != null)
-                              _ChipWidget(label: 'Alt', value: '${pos.altitude!.toStringAsFixed(1)} m'),
-                            if (pos.speed != null) ...[
-                              _ChipWidget(label: 'Speed', value: '${(pos.speed! * 1.94384).toStringAsFixed(1)} kn'),
-                              _ChipWidget(label: 'Speed', value: '${(pos.speed! * 3.6).toStringAsFixed(1)} km/h'),
-                            ],
-                            if (pos.heading != null)
-                              _ChipWidget(label: 'Course', value: '${pos.heading!.toStringAsFixed(1)}° ${_headingToCardinal(pos.heading!)}'),
+                            SelectableText(
+                              displayDecimalMinutes
+                                  ? '${decimalToDecimalMinutesLatitude(pos.latitude, 4)}\n${decimalToDecimalMinutesLongitude(pos.longitude, 4)}'
+                                  : '${decimalToDmsLatitude(pos.latitude, 2)}\n${decimalToDmsLongitude(pos.longitude, 2)}',
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: [
+                                if (pos.altitude != null)
+                                  _ChipWidget(
+                                      label: 'Alt',
+                                      value:
+                                          '${pos.altitude!.toStringAsFixed(1)} m'),
+                                if (pos.speed != null) ...[
+                                  _ChipWidget(
+                                      label: 'Speed',
+                                      value:
+                                          '${(pos.speed! * 1.94384).toStringAsFixed(1)} kn'),
+                                  _ChipWidget(
+                                      label: 'Speed',
+                                      value:
+                                          '${(pos.speed! * 3.6).toStringAsFixed(1)} km/h'),
+                                ],
+                                if (pos.heading != null)
+                                  _ChipWidget(
+                                      label: 'Course',
+                                      value:
+                                          '${pos.heading!.toStringAsFixed(1)}° ${_headingToCardinal(pos.heading!)}'),
+                              ],
+                            ),
                           ],
                         ),
-                      ],
-                    ),
             ),
           ],
         ),
