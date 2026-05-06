@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../core/constants/app_constants.dart';
+
 part 'app_settings.freezed.dart';
 part 'app_settings.g.dart';
 
@@ -52,24 +54,24 @@ class AppSettings with _$AppSettings {
         networkIndex: 0,
         frequencyIndex: 2,
         accuracyIndex: 0,
-        operateInBackground: false,
-        sendInOneTransmission: false,
+        operateInBackground: DefaultSettings.operateInBackground,
+        sendInOneTransmission: DefaultSettings.sendInOneTransmission,
         highContrast: false,
         trueNorth: false,
         operateWhenTerminated: false,
         disableWhenStatic: false,
         displayDecimalMinutes: false,
         passwordHash: null,
-        targetIpAddress: '192.168.1.255',
-        targetPort: 11123,
-        multicastGroupAddress: '239.255.255.250',
-        socketPort: 11123,
-        taipDeviceId: '0000',
+        targetIpAddress: DefaultSettings.defaultTargetIpAddress,
+        targetPort: DefaultSettings.defaultPort,
+        multicastGroupAddress: DefaultSettings.defaultMulticastAddress,
+        socketPort: DefaultSettings.defaultPort,
+        taipDeviceId: DefaultSettings.defaultTaipDeviceId,
         bleEnabled: false,
         customGptxt: null,
-        websocketPort: 8080,
+        websocketPort: DefaultSettings.defaultWebsocketPort,
         websocketUrl: null,
-        staticThresholdMeters: 0.5,
+        staticThresholdMeters: DefaultSettings.staticThresholdMeters,
         ggaEnabled: true,
         gllEnabled: false,
         gsaEnabled: false,

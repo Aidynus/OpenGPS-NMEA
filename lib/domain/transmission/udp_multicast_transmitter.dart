@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:opengps_nmea/domain/models/app_settings.dart';
 import 'package:opengps_nmea/domain/transmission/abstract_transmitter.dart';
 
@@ -56,7 +58,9 @@ class UdpMulticastTransmitter extends BaseTransmitter {
         } else {
           _socket!.leaveMulticast(_groupAddress!);
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[UdpMulticastTransmitter] error leaving multicast: $e');
+      }
     }
 
     _socket?.close();

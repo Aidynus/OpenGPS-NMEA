@@ -69,6 +69,8 @@
 		<string>com.opengps.nmea.locationUpdate</string>
 		<string>com.opengps.nmea.transmission</string>
 	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
