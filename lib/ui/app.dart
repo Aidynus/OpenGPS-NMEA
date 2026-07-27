@@ -6,6 +6,9 @@ import '../../data/providers/location_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'features/main/main_screen.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/log/sentence_log_screen.dart';
+import 'features/profiles/connection_profiles_screen.dart';
+import 'features/lock/lock_screen.dart';
 
 final _routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -13,37 +16,60 @@ final _routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/',
-        pageBuilder: (context, state) => CustomTransitionPage(
+        pageBuilder: (context, state) => _fadePage(
           key: state.pageKey,
           child: const MainScreen(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(
-              opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
-              child: child,
-            );
-          },
-          transitionDuration: Durations.medium1,
-          reverseTransitionDuration: Durations.medium1,
         ),
       ),
       GoRoute(
         path: '/settings',
-        pageBuilder: (context, state) => CustomTransitionPage(
+        pageBuilder: (context, state) => _fadePage(
           key: state.pageKey,
           child: const SettingsScreen(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(
-              opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
-              child: child,
-            );
-          },
-          transitionDuration: Durations.medium1,
-          reverseTransitionDuration: Durations.medium1,
+        ),
+      ),
+      GoRoute(
+        path: '/log',
+        pageBuilder: (context, state) => _fadePage(
+          key: state.pageKey,
+          child: const SentenceLogScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/profiles',
+        pageBuilder: (context, state) => _fadePage(
+          key: state.pageKey,
+          child: const ConnectionProfilesScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/lock',
+        pageBuilder: (context, state) => _fadePage(
+          key: state.pageKey,
+          child: const LockScreen(),
         ),
       ),
     ],
   );
 });
+
+CustomTransitionPage<void> _fadePage({
+  required LocalKey key,
+  required Widget child,
+}) {
+  return CustomTransitionPage<void>(
+    key: key,
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeTransition(
+        opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+        child: child,
+      );
+    },
+    transitionDuration: Durations.medium1,
+    reverseTransitionDuration: Durations.medium1,
+  );
+}
 
 class OpenGpsNmeaApp extends ConsumerWidget {
   const OpenGpsNmeaApp({super.key});
@@ -52,12 +78,16 @@ class OpenGpsNmeaApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(_routerProvider);
     final settings = ref.watch(appSettingsProvider);
+    final isHighContrast = settings.highContrast;
 
     return MaterialApp.router(
       title: 'OpenGPS-NMEA',
       debugShowCheckedModeBanner: false,
-      theme: settings.highContrast ? AppTheme.highContrast : AppTheme.lowContrast,
-      darkTheme: AppTheme.dark,
+      // Light theme: low contrast or high contrast
+      theme: isHighContrast ? AppTheme.highContrast : AppTheme.lowContrast,
+      // Dark theme: dark high contrast or standard dark
+      darkTheme: isHighContrast ? AppTheme.darkHighContrast : AppTheme.dark,
+      themeMode: ThemeMode.system,
       routerConfig: router,
     );
   }

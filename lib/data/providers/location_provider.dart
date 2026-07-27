@@ -6,11 +6,13 @@ import 'package:network_info_plus/network_info_plus.dart' as net_info;
 
 import '../../core/constants/app_constants.dart';
 import '../../domain/models/app_settings.dart';
-import '../../domain/models/connection_status.dart';
+import '../../domain/models/connection_profile.dart';
 import '../../domain/models/gps_position.dart';
 import '../../domain/models/network_info.dart';
 import '../repositories/settings_repository.dart';
 import '../services/location_service.dart';
+
+// ── Settings ──────────────────────────────────────────────────────────────────
 
 final settingsRepositoryProvider =
     FutureProvider<SettingsRepository>((ref) async {
@@ -30,7 +32,7 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
     return repoAsync.when(
       data: _loadFromRepo,
       loading: () => AppSettings.defaults(),
-      error: (_, _) => AppSettings.defaults(),
+      error: (_, __) => AppSettings.defaults(),
     );
   }
 
@@ -55,10 +57,12 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
       socketPort: repo.socketPort,
       taipDeviceId: repo.taipDeviceId,
       bleEnabled: repo.bleEnabled,
+      bleDeviceName: repo.bleDeviceName,
       customGptxt: repo.customGptxt,
       websocketPort: repo.websocketPort,
       websocketUrl: repo.websocketUrl,
       staticThresholdMeters: repo.staticThresholdMeters,
+      speedUnitIndex: repo.speedUnitIndex,
       ggaEnabled: repo.ggaEnabled,
       gllEnabled: repo.gllEnabled,
       gsaEnabled: repo.gsaEnabled,
@@ -86,9 +90,18 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
   }
 
   Future<void> _persist() async {
-    final repo = ref.read(settingsRepositoryProvider).value;
-    if (repo == null) return;
-    await _saveToRepo(repo, state);
+    final repo = ref.read(settingsRepositoryProvider).valueOrNull;
+    if (repo == null) {
+      // Repository not yet loaded — skip silently but log in debug.
+      assert(false, '[AppSettingsNotifier] persist called before repo loaded');
+      return;
+    }
+    try {
+      await _saveToRepo(repo, state);
+    } catch (e) {
+      // Surface the error as a provider error so the UI can react.
+      throw StateError('Failed to persist settings: $e');
+    }
   }
 
   static Future<void> _saveToRepo(SettingsRepository repo, AppSettings s) {
@@ -112,10 +125,12 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
       repo.setSocketPort(s.socketPort),
       repo.setTaipDeviceId(s.taipDeviceId),
       repo.setBleEnabled(s.bleEnabled),
+      repo.setBleDeviceName(s.bleDeviceName),
       repo.setCustomGptxt(s.customGptxt),
       repo.setWebsocketPort(s.websocketPort),
       repo.setWebsocketUrl(s.websocketUrl),
       repo.setStaticThresholdMeters(s.staticThresholdMeters),
+      repo.setSpeedUnitIndex(s.speedUnitIndex),
       repo.setGgaEnabled(s.ggaEnabled),
       repo.setGllEnabled(s.gllEnabled),
       repo.setGsaEnabled(s.gsaEnabled),
@@ -138,6 +153,56 @@ final appSettingsProvider =
   AppSettingsNotifier.new,
 );
 
+/// Whether the settings repository has finished loading.
+final settingsReadyProvider = Provider<bool>((ref) {
+  return ref.watch(settingsRepositoryProvider).hasValue;
+});
+
+// ── Connection profiles ───────────────────────────────────────────────────────
+
+class ConnectionProfilesNotifier
+    extends Notifier<List<ConnectionProfile>> {
+  @override
+  List<ConnectionProfile> build() {
+    final repoAsync = ref.watch(settingsRepositoryProvider);
+    return repoAsync.when(
+      data: (repo) => repo.connectionProfiles,
+      loading: () => [],
+      error: (_, __) => [],
+    );
+  }
+
+  Future<void> saveProfile(ConnectionProfile profile) async {
+    final existing = List<ConnectionProfile>.from(state);
+    final idx = existing.indexWhere((p) => p.id == profile.id);
+    if (idx >= 0) {
+      existing[idx] = profile;
+    } else {
+      existing.add(profile);
+    }
+    state = existing;
+    await _persist();
+  }
+
+  Future<void> deleteProfile(String id) async {
+    state = state.where((p) => p.id != id).toList();
+    await _persist();
+  }
+
+  Future<void> _persist() async {
+    final repo = ref.read(settingsRepositoryProvider).valueOrNull;
+    if (repo == null) return;
+    await repo.setConnectionProfiles(state);
+  }
+}
+
+final connectionProfilesProvider =
+    NotifierProvider<ConnectionProfilesNotifier, List<ConnectionProfile>>(
+  ConnectionProfilesNotifier.new,
+);
+
+// ── GPS position stream ───────────────────────────────────────────────────────
+
 GpsPosition _positionToGpsPosition(Position p) {
   return GpsPosition(
     latitude: p.latitude,
@@ -155,12 +220,11 @@ GpsPosition _positionToGpsPosition(Position p) {
 
 final locationPermissionErrorProvider = StateProvider<String?>((ref) => null);
 
-final positionStreamProvider = StreamProvider<GpsPosition>((ref) async* {
+/// Raw position stream — no frequency throttling or static filtering.
+/// Useful for UI components (map, accuracy dot) that need every update.
+final rawPositionStreamProvider = StreamProvider<GpsPosition>((ref) async* {
   final locationService = ref.watch(locationServiceProvider);
 
-  // Request location permission BEFORE starting the stream.
-  // On iOS, geolocator won't deliver positions until the user
-  // grants permission via the system dialog.
   final hasPermission = await locationService.checkAndRequestPermission();
   if (!hasPermission) {
     ref.read(locationPermissionErrorProvider.notifier).state =
@@ -178,21 +242,26 @@ final positionStreamProvider = StreamProvider<GpsPosition>((ref) async* {
   ref.read(locationPermissionErrorProvider.notifier).state = null;
 
   final settings = ref.watch(appSettingsProvider);
-
   final stream = locationService.getPositionStream(
     accuracyPreset: settings.accuracyIndex,
   );
 
-  final frequency =
-      TransmissionFrequencyPreset.fromIndex(settings.frequencyIndex);
+  await for (final position in stream) {
+    yield _positionToGpsPosition(position);
+  }
+});
+
+/// Throttled + static-filtered stream used for transmission.
+/// Separate from [rawPositionStreamProvider] so UI consumers are unaffected.
+final positionStreamProvider = StreamProvider<GpsPosition>((ref) async* {
+  final settings = ref.watch(appSettingsProvider);
+  final frequency = TransmissionFrequencyPreset.fromIndex(settings.frequencyIndex);
   final disableWhenStatic = settings.disableWhenStatic;
   final staticThreshold = settings.staticThresholdMeters;
 
   GpsPosition? lastEmitted;
 
-  await for (final position in stream) {
-    final gpsPos = _positionToGpsPosition(position);
-
+  await for (final gpsPos in ref.watch(rawPositionStreamProvider.stream)) {
     if (disableWhenStatic && lastEmitted != null) {
       final distance = Geolocator.distanceBetween(
         lastEmitted.latitude,
@@ -215,6 +284,8 @@ final positionStreamProvider = StreamProvider<GpsPosition>((ref) async* {
   }
 });
 
+// ── Position tracker (last known / previous) ──────────────────────────────────
+
 class _PositionTracker {
   final GpsPosition? previous;
   final GpsPosition? current;
@@ -228,7 +299,9 @@ class _PositionTracker {
 class _PositionTrackerNotifier extends Notifier<_PositionTracker> {
   @override
   _PositionTracker build() {
-    ref.listen(positionStreamProvider, (_, next) {
+    // Listen to the raw stream so the displayed position updates immediately,
+    // independent of the transmission throttle.
+    ref.listen(rawPositionStreamProvider, (_, next) {
       next.whenData((pos) {
         state = state.update(pos);
       });
@@ -246,9 +319,7 @@ final lastKnownPositionProvider = Provider<GpsPosition?>((ref) {
   return ref.watch(_positionTrackerProvider).current;
 });
 
-final _previousPositionProvider = Provider<GpsPosition?>((ref) {
-  return ref.watch(_positionTrackerProvider).previous;
-});
+// ── Network info ─────────────────────────────────────────────────────────────
 
 final networkInfoProvider = FutureProvider<NetworkInfo>((ref) async {
   final netInfo = net_info.NetworkInfo();
@@ -270,8 +341,10 @@ final networkInfoProvider = FutureProvider<NetworkInfo>((ref) async {
     }
   }
 
+  // Attempt to get cellular IP via getWifiBSSID fallback is not reliable;
+  // left as null until a platform channel is available.
   return NetworkInfo(
-    wifiIp: wifiIp,
+    wifiIp: isHotspot ? null : wifiIp,
     cellularIp: null,
     hotspotIp: hotspotIp,
     hotspotSubnet: hotspotSubnet,
@@ -281,65 +354,6 @@ final networkInfoProvider = FutureProvider<NetworkInfo>((ref) async {
 
 bool _isHotspotIp(String ip) {
   return ip.startsWith('192.168.43.') ||
-      ip.startsWith('192.168.1.') ||
       ip.startsWith('172.20.') ||
       ip.startsWith('100.64.');
 }
-
-class ConnectionStatusNotifier extends StateNotifier<ConnectionStatus> {
-  ConnectionStatusNotifier(Ref _) : super(const ConnectionStatus(
-          isActive: false,
-          isConnected: false,
-          connectedClientCount: 0,
-          totalTxCount: 0,
-          totalRxCount: 0,
-        ));
-
-  void setActive(bool active) {
-    state = state.copyWith(isActive: active);
-  }
-
-  void setConnected(bool connected) {
-    state = state.copyWith(isConnected: connected);
-  }
-
-  void incrementTx() {
-    state = state.copyWith(totalTxCount: state.totalTxCount + 1);
-  }
-
-  void incrementRx() {
-    state = state.copyWith(totalRxCount: state.totalRxCount + 1);
-  }
-
-  void updateClientCount(int count) {
-    state = state.copyWith(connectedClientCount: count);
-  }
-
-  void setBleStatus(String status) {
-    state = state.copyWith(bleStatus: status);
-  }
-
-  void setLocalIp(String ip) {
-    state = state.copyWith(localIpAddress: ip);
-  }
-}
-
-final connectionStatusProvider =
-    StateNotifierProvider<ConnectionStatusNotifier, ConnectionStatus>(
-  ConnectionStatusNotifier.new,
-);
-
-final staticThresholdExceededProvider = Provider<bool>((ref) {
-  final prev = ref.watch(_previousPositionProvider);
-  final current = ref.watch(lastKnownPositionProvider);
-  final settings = ref.watch(appSettingsProvider);
-
-  if (prev == null || current == null) return true;
-  final distance = Geolocator.distanceBetween(
-    prev.latitude,
-    prev.longitude,
-    current.latitude,
-    current.longitude,
-  );
-  return distance > settings.staticThresholdMeters;
-});
