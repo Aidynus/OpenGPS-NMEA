@@ -40,10 +40,12 @@ mixin _$AppSettings {
   int get socketPort => throw _privateConstructorUsedError;
   String get taipDeviceId => throw _privateConstructorUsedError;
   bool get bleEnabled => throw _privateConstructorUsedError;
+  String get bleDeviceName => throw _privateConstructorUsedError;
   String? get customGptxt => throw _privateConstructorUsedError;
   int get websocketPort => throw _privateConstructorUsedError;
   String? get websocketUrl => throw _privateConstructorUsedError;
   double get staticThresholdMeters => throw _privateConstructorUsedError;
+  int get speedUnitIndex => throw _privateConstructorUsedError;
   bool get ggaEnabled => throw _privateConstructorUsedError;
   bool get gllEnabled => throw _privateConstructorUsedError;
   bool get gsaEnabled => throw _privateConstructorUsedError;
@@ -95,10 +97,12 @@ abstract class $AppSettingsCopyWith<$Res> {
     int socketPort,
     String taipDeviceId,
     bool bleEnabled,
+    String bleDeviceName,
     String? customGptxt,
     int websocketPort,
     String? websocketUrl,
     double staticThresholdMeters,
+    int speedUnitIndex,
     bool ggaEnabled,
     bool gllEnabled,
     bool gsaEnabled,
@@ -149,10 +153,12 @@ class _$AppSettingsCopyWithImpl<$Res, $Val extends AppSettings>
     Object? socketPort = null,
     Object? taipDeviceId = null,
     Object? bleEnabled = null,
+    Object? bleDeviceName = null,
     Object? customGptxt = freezed,
     Object? websocketPort = null,
     Object? websocketUrl = freezed,
     Object? staticThresholdMeters = null,
+    Object? speedUnitIndex = null,
     Object? ggaEnabled = null,
     Object? gllEnabled = null,
     Object? gsaEnabled = null,
@@ -245,6 +251,10 @@ class _$AppSettingsCopyWithImpl<$Res, $Val extends AppSettings>
                 ? _value.bleEnabled
                 : bleEnabled // ignore: cast_nullable_to_non_nullable
                       as bool,
+            bleDeviceName: null == bleDeviceName
+                ? _value.bleDeviceName
+                : bleDeviceName // ignore: cast_nullable_to_non_nullable
+                      as String,
             customGptxt: freezed == customGptxt
                 ? _value.customGptxt
                 : customGptxt // ignore: cast_nullable_to_non_nullable
@@ -261,6 +271,10 @@ class _$AppSettingsCopyWithImpl<$Res, $Val extends AppSettings>
                 ? _value.staticThresholdMeters
                 : staticThresholdMeters // ignore: cast_nullable_to_non_nullable
                       as double,
+            speedUnitIndex: null == speedUnitIndex
+                ? _value.speedUnitIndex
+                : speedUnitIndex // ignore: cast_nullable_to_non_nullable
+                      as int,
             ggaEnabled: null == ggaEnabled
                 ? _value.ggaEnabled
                 : ggaEnabled // ignore: cast_nullable_to_non_nullable
@@ -348,10 +362,12 @@ abstract class _$$AppSettingsImplCopyWith<$Res>
     int socketPort,
     String taipDeviceId,
     bool bleEnabled,
+    String bleDeviceName,
     String? customGptxt,
     int websocketPort,
     String? websocketUrl,
     double staticThresholdMeters,
+    int speedUnitIndex,
     bool ggaEnabled,
     bool gllEnabled,
     bool gsaEnabled,
@@ -401,10 +417,12 @@ class __$$AppSettingsImplCopyWithImpl<$Res>
     Object? socketPort = null,
     Object? taipDeviceId = null,
     Object? bleEnabled = null,
+    Object? bleDeviceName = null,
     Object? customGptxt = freezed,
     Object? websocketPort = null,
     Object? websocketUrl = freezed,
     Object? staticThresholdMeters = null,
+    Object? speedUnitIndex = null,
     Object? ggaEnabled = null,
     Object? gllEnabled = null,
     Object? gsaEnabled = null,
@@ -497,6 +515,10 @@ class __$$AppSettingsImplCopyWithImpl<$Res>
             ? _value.bleEnabled
             : bleEnabled // ignore: cast_nullable_to_non_nullable
                   as bool,
+        bleDeviceName: null == bleDeviceName
+            ? _value.bleDeviceName
+            : bleDeviceName // ignore: cast_nullable_to_non_nullable
+                  as String,
         customGptxt: freezed == customGptxt
             ? _value.customGptxt
             : customGptxt // ignore: cast_nullable_to_non_nullable
@@ -513,6 +535,10 @@ class __$$AppSettingsImplCopyWithImpl<$Res>
             ? _value.staticThresholdMeters
             : staticThresholdMeters // ignore: cast_nullable_to_non_nullable
                   as double,
+        speedUnitIndex: null == speedUnitIndex
+            ? _value.speedUnitIndex
+            : speedUnitIndex // ignore: cast_nullable_to_non_nullable
+                  as int,
         ggaEnabled: null == ggaEnabled
             ? _value.ggaEnabled
             : ggaEnabled // ignore: cast_nullable_to_non_nullable
@@ -593,10 +619,12 @@ class _$AppSettingsImpl extends _AppSettings {
     required this.socketPort,
     required this.taipDeviceId,
     required this.bleEnabled,
+    required this.bleDeviceName,
     this.customGptxt,
     required this.websocketPort,
     this.websocketUrl,
     required this.staticThresholdMeters,
+    required this.speedUnitIndex,
     required this.ggaEnabled,
     required this.gllEnabled,
     required this.gsaEnabled,
@@ -654,6 +682,8 @@ class _$AppSettingsImpl extends _AppSettings {
   @override
   final bool bleEnabled;
   @override
+  final String bleDeviceName;
+  @override
   final String? customGptxt;
   @override
   final int websocketPort;
@@ -661,6 +691,8 @@ class _$AppSettingsImpl extends _AppSettings {
   final String? websocketUrl;
   @override
   final double staticThresholdMeters;
+  @override
+  final int speedUnitIndex;
   @override
   final bool ggaEnabled;
   @override
@@ -690,7 +722,7 @@ class _$AppSettingsImpl extends _AppSettings {
 
   @override
   String toString() {
-    return 'AppSettings(protocolIndex: $protocolIndex, connectionMethodIndex: $connectionMethodIndex, networkIndex: $networkIndex, frequencyIndex: $frequencyIndex, accuracyIndex: $accuracyIndex, operateInBackground: $operateInBackground, sendInOneTransmission: $sendInOneTransmission, highContrast: $highContrast, trueNorth: $trueNorth, operateWhenTerminated: $operateWhenTerminated, disableWhenStatic: $disableWhenStatic, displayDecimalMinutes: $displayDecimalMinutes, passwordHash: $passwordHash, targetIpAddress: $targetIpAddress, targetPort: $targetPort, multicastGroupAddress: $multicastGroupAddress, socketPort: $socketPort, taipDeviceId: $taipDeviceId, bleEnabled: $bleEnabled, customGptxt: $customGptxt, websocketPort: $websocketPort, websocketUrl: $websocketUrl, staticThresholdMeters: $staticThresholdMeters, ggaEnabled: $ggaEnabled, gllEnabled: $gllEnabled, gsaEnabled: $gsaEnabled, hdgEnabled: $hdgEnabled, hdmEnabled: $hdmEnabled, hdtEnabled: $hdtEnabled, rmcEnabled: $rmcEnabled, vtgEnabled: $vtgEnabled, zdaEnabled: $zdaEnabled, pashrEnabled: $pashrEnabled, gptxtEnabled: $gptxtEnabled, taipPvEnabled: $taipPvEnabled, taipAlEnabled: $taipAlEnabled)';
+    return 'AppSettings(protocolIndex: $protocolIndex, connectionMethodIndex: $connectionMethodIndex, networkIndex: $networkIndex, frequencyIndex: $frequencyIndex, accuracyIndex: $accuracyIndex, operateInBackground: $operateInBackground, sendInOneTransmission: $sendInOneTransmission, highContrast: $highContrast, trueNorth: $trueNorth, operateWhenTerminated: $operateWhenTerminated, disableWhenStatic: $disableWhenStatic, displayDecimalMinutes: $displayDecimalMinutes, passwordHash: $passwordHash, targetIpAddress: $targetIpAddress, targetPort: $targetPort, multicastGroupAddress: $multicastGroupAddress, socketPort: $socketPort, taipDeviceId: $taipDeviceId, bleEnabled: $bleEnabled, bleDeviceName: $bleDeviceName, customGptxt: $customGptxt, websocketPort: $websocketPort, websocketUrl: $websocketUrl, staticThresholdMeters: $staticThresholdMeters, speedUnitIndex: $speedUnitIndex, ggaEnabled: $ggaEnabled, gllEnabled: $gllEnabled, gsaEnabled: $gsaEnabled, hdgEnabled: $hdgEnabled, hdmEnabled: $hdmEnabled, hdtEnabled: $hdtEnabled, rmcEnabled: $rmcEnabled, vtgEnabled: $vtgEnabled, zdaEnabled: $zdaEnabled, pashrEnabled: $pashrEnabled, gptxtEnabled: $gptxtEnabled, taipPvEnabled: $taipPvEnabled, taipAlEnabled: $taipAlEnabled)';
   }
 
   @override
@@ -736,6 +768,8 @@ class _$AppSettingsImpl extends _AppSettings {
                 other.taipDeviceId == taipDeviceId) &&
             (identical(other.bleEnabled, bleEnabled) ||
                 other.bleEnabled == bleEnabled) &&
+            (identical(other.bleDeviceName, bleDeviceName) ||
+                other.bleDeviceName == bleDeviceName) &&
             (identical(other.customGptxt, customGptxt) ||
                 other.customGptxt == customGptxt) &&
             (identical(other.websocketPort, websocketPort) ||
@@ -744,6 +778,8 @@ class _$AppSettingsImpl extends _AppSettings {
                 other.websocketUrl == websocketUrl) &&
             (identical(other.staticThresholdMeters, staticThresholdMeters) ||
                 other.staticThresholdMeters == staticThresholdMeters) &&
+            (identical(other.speedUnitIndex, speedUnitIndex) ||
+                other.speedUnitIndex == speedUnitIndex) &&
             (identical(other.ggaEnabled, ggaEnabled) ||
                 other.ggaEnabled == ggaEnabled) &&
             (identical(other.gllEnabled, gllEnabled) ||
@@ -795,10 +831,12 @@ class _$AppSettingsImpl extends _AppSettings {
     socketPort,
     taipDeviceId,
     bleEnabled,
+    bleDeviceName,
     customGptxt,
     websocketPort,
     websocketUrl,
     staticThresholdMeters,
+    speedUnitIndex,
     ggaEnabled,
     gllEnabled,
     gsaEnabled,
@@ -849,10 +887,12 @@ abstract class _AppSettings extends AppSettings {
     required final int socketPort,
     required final String taipDeviceId,
     required final bool bleEnabled,
+    required final String bleDeviceName,
     final String? customGptxt,
     required final int websocketPort,
     final String? websocketUrl,
     required final double staticThresholdMeters,
+    required final int speedUnitIndex,
     required final bool ggaEnabled,
     required final bool gllEnabled,
     required final bool gsaEnabled,
@@ -911,6 +951,8 @@ abstract class _AppSettings extends AppSettings {
   @override
   bool get bleEnabled;
   @override
+  String get bleDeviceName;
+  @override
   String? get customGptxt;
   @override
   int get websocketPort;
@@ -918,6 +960,8 @@ abstract class _AppSettings extends AppSettings {
   String? get websocketUrl;
   @override
   double get staticThresholdMeters;
+  @override
+  int get speedUnitIndex;
   @override
   bool get ggaEnabled;
   @override

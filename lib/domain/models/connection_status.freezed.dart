@@ -21,6 +21,7 @@ ConnectionStatus _$ConnectionStatusFromJson(Map<String, dynamic> json) {
 
 /// @nodoc
 mixin _$ConnectionStatus {
+  TransmissionStatus get status => throw _privateConstructorUsedError;
   bool get isActive => throw _privateConstructorUsedError;
   bool get isConnected => throw _privateConstructorUsedError;
   int get connectedClientCount => throw _privateConstructorUsedError;
@@ -30,6 +31,7 @@ mixin _$ConnectionStatus {
   String? get bleStatus => throw _privateConstructorUsedError;
   DateTime? get lastTxTime => throw _privateConstructorUsedError;
   String? get activeProtocol => throw _privateConstructorUsedError;
+  String? get errorMessage => throw _privateConstructorUsedError;
 
   /// Serializes this ConnectionStatus to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -49,6 +51,7 @@ abstract class $ConnectionStatusCopyWith<$Res> {
   ) = _$ConnectionStatusCopyWithImpl<$Res, ConnectionStatus>;
   @useResult
   $Res call({
+    TransmissionStatus status,
     bool isActive,
     bool isConnected,
     int connectedClientCount,
@@ -58,6 +61,7 @@ abstract class $ConnectionStatusCopyWith<$Res> {
     String? bleStatus,
     DateTime? lastTxTime,
     String? activeProtocol,
+    String? errorMessage,
   });
 }
 
@@ -76,6 +80,7 @@ class _$ConnectionStatusCopyWithImpl<$Res, $Val extends ConnectionStatus>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
+    Object? status = null,
     Object? isActive = null,
     Object? isConnected = null,
     Object? connectedClientCount = null,
@@ -85,9 +90,14 @@ class _$ConnectionStatusCopyWithImpl<$Res, $Val extends ConnectionStatus>
     Object? bleStatus = freezed,
     Object? lastTxTime = freezed,
     Object? activeProtocol = freezed,
+    Object? errorMessage = freezed,
   }) {
     return _then(
       _value.copyWith(
+            status: null == status
+                ? _value.status
+                : status // ignore: cast_nullable_to_non_nullable
+                      as TransmissionStatus,
             isActive: null == isActive
                 ? _value.isActive
                 : isActive // ignore: cast_nullable_to_non_nullable
@@ -124,6 +134,10 @@ class _$ConnectionStatusCopyWithImpl<$Res, $Val extends ConnectionStatus>
                 ? _value.activeProtocol
                 : activeProtocol // ignore: cast_nullable_to_non_nullable
                       as String?,
+            errorMessage: freezed == errorMessage
+                ? _value.errorMessage
+                : errorMessage // ignore: cast_nullable_to_non_nullable
+                      as String?,
           )
           as $Val,
     );
@@ -140,6 +154,7 @@ abstract class _$$ConnectionStatusImplCopyWith<$Res>
   @override
   @useResult
   $Res call({
+    TransmissionStatus status,
     bool isActive,
     bool isConnected,
     int connectedClientCount,
@@ -149,6 +164,7 @@ abstract class _$$ConnectionStatusImplCopyWith<$Res>
     String? bleStatus,
     DateTime? lastTxTime,
     String? activeProtocol,
+    String? errorMessage,
   });
 }
 
@@ -166,6 +182,7 @@ class __$$ConnectionStatusImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
+    Object? status = null,
     Object? isActive = null,
     Object? isConnected = null,
     Object? connectedClientCount = null,
@@ -175,9 +192,14 @@ class __$$ConnectionStatusImplCopyWithImpl<$Res>
     Object? bleStatus = freezed,
     Object? lastTxTime = freezed,
     Object? activeProtocol = freezed,
+    Object? errorMessage = freezed,
   }) {
     return _then(
       _$ConnectionStatusImpl(
+        status: null == status
+            ? _value.status
+            : status // ignore: cast_nullable_to_non_nullable
+                  as TransmissionStatus,
         isActive: null == isActive
             ? _value.isActive
             : isActive // ignore: cast_nullable_to_non_nullable
@@ -214,6 +236,10 @@ class __$$ConnectionStatusImplCopyWithImpl<$Res>
             ? _value.activeProtocol
             : activeProtocol // ignore: cast_nullable_to_non_nullable
                   as String?,
+        errorMessage: freezed == errorMessage
+            ? _value.errorMessage
+            : errorMessage // ignore: cast_nullable_to_non_nullable
+                  as String?,
       ),
     );
   }
@@ -223,29 +249,39 @@ class __$$ConnectionStatusImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$ConnectionStatusImpl implements _ConnectionStatus {
   const _$ConnectionStatusImpl({
-    required this.isActive,
-    required this.isConnected,
-    required this.connectedClientCount,
-    required this.totalTxCount,
-    required this.totalRxCount,
+    this.status = TransmissionStatus.idle,
+    this.isActive = false,
+    this.isConnected = false,
+    this.connectedClientCount = 0,
+    this.totalTxCount = 0,
+    this.totalRxCount = 0,
     this.localIpAddress,
     this.bleStatus,
     this.lastTxTime,
     this.activeProtocol,
+    this.errorMessage,
   });
 
   factory _$ConnectionStatusImpl.fromJson(Map<String, dynamic> json) =>
       _$$ConnectionStatusImplFromJson(json);
 
   @override
+  @JsonKey()
+  final TransmissionStatus status;
+  @override
+  @JsonKey()
   final bool isActive;
   @override
+  @JsonKey()
   final bool isConnected;
   @override
+  @JsonKey()
   final int connectedClientCount;
   @override
+  @JsonKey()
   final int totalTxCount;
   @override
+  @JsonKey()
   final int totalRxCount;
   @override
   final String? localIpAddress;
@@ -255,10 +291,12 @@ class _$ConnectionStatusImpl implements _ConnectionStatus {
   final DateTime? lastTxTime;
   @override
   final String? activeProtocol;
+  @override
+  final String? errorMessage;
 
   @override
   String toString() {
-    return 'ConnectionStatus(isActive: $isActive, isConnected: $isConnected, connectedClientCount: $connectedClientCount, totalTxCount: $totalTxCount, totalRxCount: $totalRxCount, localIpAddress: $localIpAddress, bleStatus: $bleStatus, lastTxTime: $lastTxTime, activeProtocol: $activeProtocol)';
+    return 'ConnectionStatus(status: $status, isActive: $isActive, isConnected: $isConnected, connectedClientCount: $connectedClientCount, totalTxCount: $totalTxCount, totalRxCount: $totalRxCount, localIpAddress: $localIpAddress, bleStatus: $bleStatus, lastTxTime: $lastTxTime, activeProtocol: $activeProtocol, errorMessage: $errorMessage)';
   }
 
   @override
@@ -266,6 +304,7 @@ class _$ConnectionStatusImpl implements _ConnectionStatus {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$ConnectionStatusImpl &&
+            (identical(other.status, status) || other.status == status) &&
             (identical(other.isActive, isActive) ||
                 other.isActive == isActive) &&
             (identical(other.isConnected, isConnected) ||
@@ -283,13 +322,16 @@ class _$ConnectionStatusImpl implements _ConnectionStatus {
             (identical(other.lastTxTime, lastTxTime) ||
                 other.lastTxTime == lastTxTime) &&
             (identical(other.activeProtocol, activeProtocol) ||
-                other.activeProtocol == activeProtocol));
+                other.activeProtocol == activeProtocol) &&
+            (identical(other.errorMessage, errorMessage) ||
+                other.errorMessage == errorMessage));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
     runtimeType,
+    status,
     isActive,
     isConnected,
     connectedClientCount,
@@ -299,6 +341,7 @@ class _$ConnectionStatusImpl implements _ConnectionStatus {
     bleStatus,
     lastTxTime,
     activeProtocol,
+    errorMessage,
   );
 
   /// Create a copy of ConnectionStatus
@@ -320,20 +363,24 @@ class _$ConnectionStatusImpl implements _ConnectionStatus {
 
 abstract class _ConnectionStatus implements ConnectionStatus {
   const factory _ConnectionStatus({
-    required final bool isActive,
-    required final bool isConnected,
-    required final int connectedClientCount,
-    required final int totalTxCount,
-    required final int totalRxCount,
+    final TransmissionStatus status,
+    final bool isActive,
+    final bool isConnected,
+    final int connectedClientCount,
+    final int totalTxCount,
+    final int totalRxCount,
     final String? localIpAddress,
     final String? bleStatus,
     final DateTime? lastTxTime,
     final String? activeProtocol,
+    final String? errorMessage,
   }) = _$ConnectionStatusImpl;
 
   factory _ConnectionStatus.fromJson(Map<String, dynamic> json) =
       _$ConnectionStatusImpl.fromJson;
 
+  @override
+  TransmissionStatus get status;
   @override
   bool get isActive;
   @override
@@ -352,6 +399,8 @@ abstract class _ConnectionStatus implements ConnectionStatus {
   DateTime? get lastTxTime;
   @override
   String? get activeProtocol;
+  @override
+  String? get errorMessage;
 
   /// Create a copy of ConnectionStatus
   /// with the given fields replaced by the non-null parameter values.
