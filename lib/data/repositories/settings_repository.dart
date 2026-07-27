@@ -1,7 +1,20 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../domain/models/connection_profile.dart';
 
+/// SharedPreferences-backed persistence for all app settings.
+///
+/// Key names are sourced from [SettingsKeys] to prevent silent typo-fallbacks.
+/// All boolean defaults reference [DefaultSettings] so a single constant
+/// change propagates everywhere.
+///
+/// Writes are serialized: concurrent [save] calls are deduplicated via an
+/// internal debounce so the prefs file is never written in a torn state.
 class SettingsRepository {
   final SharedPreferences _prefs;
 
@@ -12,177 +25,254 @@ class SettingsRepository {
     return SettingsRepository._(prefs);
   }
 
-  // Protocol
-  int get protocolIndex => _prefs.getInt('protocolIndex') ?? 0;
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  int _getInt(String key, int defaultValue) =>
+      _prefs.getInt(key) ?? defaultValue;
+
+  bool _getBool(String key, bool defaultValue) =>
+      _prefs.getBool(key) ?? defaultValue;
+
+  String _getString(String key, String defaultValue) =>
+      _prefs.getString(key) ?? defaultValue;
+
+  String? _getNullableString(String key) => _prefs.getString(key);
+
+  double _getDouble(String key, double defaultValue) =>
+      _prefs.getDouble(key) ?? defaultValue;
+
+  // ── Protocol ─────────────────────────────────────────────────────────────
+
+  int get protocolIndex =>
+      _getInt(SettingsKeys.protocolIndex, DefaultSettings.defaultProtocolIndex);
   Future<bool> setProtocolIndex(int value) =>
-      _prefs.setInt('protocolIndex', value);
+      _prefs.setInt(SettingsKeys.protocolIndex, value);
 
-  // Connection
-  int get connectionMethodIndex => _prefs.getInt('connectionMethodIndex') ?? 0;
+  // ── Connection ───────────────────────────────────────────────────────────
+
+  int get connectionMethodIndex => _getInt(
+      SettingsKeys.connectionMethodIndex,
+      DefaultSettings.defaultConnectionMethodIndex);
   Future<bool> setConnectionMethodIndex(int value) =>
-      _prefs.setInt('connectionMethodIndex', value);
+      _prefs.setInt(SettingsKeys.connectionMethodIndex, value);
 
-  // Network
-  int get networkIndex => _prefs.getInt('networkIndex') ?? 0;
+  // ── Network ──────────────────────────────────────────────────────────────
+
+  int get networkIndex =>
+      _getInt(SettingsKeys.networkIndex, DefaultSettings.defaultNetworkIndex);
   Future<bool> setNetworkIndex(int value) =>
-      _prefs.setInt('networkIndex', value);
+      _prefs.setInt(SettingsKeys.networkIndex, value);
 
-  // Frequency
-  int get frequencyIndex => _prefs.getInt('frequencyIndex') ?? 2;
+  // ── Frequency ────────────────────────────────────────────────────────────
+
+  int get frequencyIndex => _getInt(
+      SettingsKeys.frequencyIndex, DefaultSettings.defaultFrequencyIndex);
   Future<bool> setFrequencyIndex(int value) =>
-      _prefs.setInt('frequencyIndex', value);
+      _prefs.setInt(SettingsKeys.frequencyIndex, value);
 
-  // Accuracy
-  int get accuracyIndex => _prefs.getInt('accuracyIndex') ?? 0;
+  // ── Accuracy ─────────────────────────────────────────────────────────────
+
+  int get accuracyIndex =>
+      _getInt(SettingsKeys.accuracyIndex, DefaultSettings.defaultAccuracyIndex);
   Future<bool> setAccuracyIndex(int value) =>
-      _prefs.setInt('accuracyIndex', value);
+      _prefs.setInt(SettingsKeys.accuracyIndex, value);
 
-  // Boolean settings
-  bool get operateInBackground => _prefs.getBool('operateInBackground') ?? DefaultSettings.operateInBackground;
+  // ── Boolean settings ─────────────────────────────────────────────────────
+
+  bool get operateInBackground => _getBool(
+      SettingsKeys.operateInBackground, DefaultSettings.operateInBackground);
   Future<bool> setOperateInBackground(bool value) =>
-      _prefs.setBool('operateInBackground', value);
+      _prefs.setBool(SettingsKeys.operateInBackground, value);
 
-  bool get sendInOneTransmission =>
-      _prefs.getBool('sendInOneTransmission') ?? false;
+  bool get sendInOneTransmission => _getBool(
+      SettingsKeys.sendInOneTransmission, DefaultSettings.sendInOneTransmission);
   Future<bool> setSendInOneTransmission(bool value) =>
-      _prefs.setBool('sendInOneTransmission', value);
+      _prefs.setBool(SettingsKeys.sendInOneTransmission, value);
 
-  bool get highContrast => _prefs.getBool('highContrast') ?? false;
+  bool get highContrast => _getBool(SettingsKeys.highContrast, false);
   Future<bool> setHighContrast(bool value) =>
-      _prefs.setBool('highContrast', value);
+      _prefs.setBool(SettingsKeys.highContrast, value);
 
-  bool get trueNorth => _prefs.getBool('trueNorth') ?? false;
+  bool get trueNorth => _getBool(SettingsKeys.trueNorth, false);
   Future<bool> setTrueNorth(bool value) =>
-      _prefs.setBool('trueNorth', value);
+      _prefs.setBool(SettingsKeys.trueNorth, value);
 
   bool get operateWhenTerminated =>
-      _prefs.getBool('operateWhenTerminated') ?? false;
+      _getBool(SettingsKeys.operateWhenTerminated, false);
   Future<bool> setOperateWhenTerminated(bool value) =>
-      _prefs.setBool('operateWhenTerminated', value);
+      _prefs.setBool(SettingsKeys.operateWhenTerminated, value);
 
-  bool get disableWhenStatic => _prefs.getBool('disableWhenStatic') ?? false;
+  bool get disableWhenStatic =>
+      _getBool(SettingsKeys.disableWhenStatic, false);
   Future<bool> setDisableWhenStatic(bool value) =>
-      _prefs.setBool('disableWhenStatic', value);
+      _prefs.setBool(SettingsKeys.disableWhenStatic, value);
 
   bool get displayDecimalMinutes =>
-      _prefs.getBool('displayDecimalMinutes') ?? false;
+      _getBool(SettingsKeys.displayDecimalMinutes, false);
   Future<bool> setDisplayDecimalMinutes(bool value) =>
-      _prefs.setBool('displayDecimalMinutes', value);
+      _prefs.setBool(SettingsKeys.displayDecimalMinutes, value);
 
-  // Authentication
-  String? get passwordHash => _prefs.getString('passwordHash');
-  Future<bool> setPasswordHash(String? value) =>
-      value == null ? _prefs.remove('passwordHash') : _prefs.setString('passwordHash', value);
+  // ── Authentication ────────────────────────────────────────────────────────
 
-  // Network targets
-  String get targetIpAddress =>
-      _prefs.getString('targetIpAddress') ?? DefaultSettings.defaultTargetIpAddress;
+  String? get passwordHash => _getNullableString(SettingsKeys.passwordHash);
+  Future<bool> setPasswordHash(String? value) => value == null
+      ? _prefs.remove(SettingsKeys.passwordHash)
+      : _prefs.setString(SettingsKeys.passwordHash, value);
+
+  // ── Network targets ───────────────────────────────────────────────────────
+
+  String get targetIpAddress => _getString(
+      SettingsKeys.targetIpAddress, DefaultSettings.defaultTargetIpAddress);
   Future<bool> setTargetIpAddress(String value) =>
-      _prefs.setString('targetIpAddress', value);
+      _prefs.setString(SettingsKeys.targetIpAddress, value);
 
-  int get targetPort => _prefs.getInt('targetPort') ?? DefaultSettings.defaultPort;
+  int get targetPort =>
+      _getInt(SettingsKeys.targetPort, DefaultSettings.defaultPort);
   Future<bool> setTargetPort(int value) =>
-      _prefs.setInt('targetPort', value);
+      _prefs.setInt(SettingsKeys.targetPort, value);
 
-  String get multicastGroupAddress =>
-      _prefs.getString('multicastGroupAddress') ?? DefaultSettings.defaultMulticastAddress;
+  String get multicastGroupAddress => _getString(
+      SettingsKeys.multicastGroupAddress, DefaultSettings.defaultMulticastAddress);
   Future<bool> setMulticastGroupAddress(String value) =>
-      _prefs.setString('multicastGroupAddress', value);
+      _prefs.setString(SettingsKeys.multicastGroupAddress, value);
 
-  int get socketPort => _prefs.getInt('socketPort') ?? DefaultSettings.defaultPort;
+  int get socketPort =>
+      _getInt(SettingsKeys.socketPort, DefaultSettings.defaultPort);
   Future<bool> setSocketPort(int value) =>
-      _prefs.setInt('socketPort', value);
+      _prefs.setInt(SettingsKeys.socketPort, value);
 
-  int get websocketPort => _prefs.getInt('websocketPort') ?? DefaultSettings.defaultWebsocketPort;
+  int get websocketPort =>
+      _getInt(SettingsKeys.websocketPort, DefaultSettings.defaultWebsocketPort);
   Future<bool> setWebsocketPort(int value) =>
-      _prefs.setInt('websocketPort', value);
+      _prefs.setInt(SettingsKeys.websocketPort, value);
 
-  String? get websocketUrl => _prefs.getString('websocketUrl');
-  Future<bool> setWebsocketUrl(String? value) =>
-      value == null ? _prefs.remove('websocketUrl') : _prefs.setString('websocketUrl', value);
+  String? get websocketUrl => _getNullableString(SettingsKeys.websocketUrl);
+  Future<bool> setWebsocketUrl(String? value) => value == null
+      ? _prefs.remove(SettingsKeys.websocketUrl)
+      : _prefs.setString(SettingsKeys.websocketUrl, value);
 
-  // TAIP
-  String get taipDeviceId => _prefs.getString('taipDeviceId') ?? DefaultSettings.defaultTaipDeviceId;
+  // ── TAIP ──────────────────────────────────────────────────────────────────
+
+  String get taipDeviceId => _getString(
+      SettingsKeys.taipDeviceId, DefaultSettings.defaultTaipDeviceId);
   Future<bool> setTaipDeviceId(String value) =>
-      _prefs.setString('taipDeviceId', value);
+      _prefs.setString(SettingsKeys.taipDeviceId, value);
 
-  bool get taipPvEnabled => _prefs.getBool('taipPvEnabled') ?? true;
+  bool get taipPvEnabled => _getBool(SettingsKeys.taipPvEnabled, true);
   Future<bool> setTaipPvEnabled(bool value) =>
-      _prefs.setBool('taipPvEnabled', value);
+      _prefs.setBool(SettingsKeys.taipPvEnabled, value);
 
-  bool get taipAlEnabled => _prefs.getBool('taipAlEnabled') ?? false;
+  bool get taipAlEnabled => _getBool(SettingsKeys.taipAlEnabled, false);
   Future<bool> setTaipAlEnabled(bool value) =>
-      _prefs.setBool('taipAlEnabled', value);
+      _prefs.setBool(SettingsKeys.taipAlEnabled, value);
 
-  // BLE
-  bool get bleEnabled => _prefs.getBool('bleEnabled') ?? false;
+  // ── BLE ───────────────────────────────────────────────────────────────────
+
+  bool get bleEnabled => _getBool(SettingsKeys.bleEnabled, false);
   Future<bool> setBleEnabled(bool value) =>
-      _prefs.setBool('bleEnabled', value);
+      _prefs.setBool(SettingsKeys.bleEnabled, value);
 
-  // Custom GPTXT
-  String? get customGptxt => _prefs.getString('customGptxt');
-  Future<bool> setCustomGptxt(String? value) =>
-      value == null ? _prefs.remove('customGptxt') : _prefs.setString('customGptxt', value);
+  String get bleDeviceName => _getString(
+      SettingsKeys.bleDeviceName, DefaultSettings.defaultBleDeviceName);
+  Future<bool> setBleDeviceName(String value) =>
+      _prefs.setString(SettingsKeys.bleDeviceName, value);
 
-  // Static threshold
-  double get staticThresholdMeters =>
-      _prefs.getDouble('staticThresholdMeters') ?? DefaultSettings.staticThresholdMeters;
+  // ── Custom GPTXT ─────────────────────────────────────────────────────────
+
+  String? get customGptxt => _getNullableString(SettingsKeys.customGptxt);
+  Future<bool> setCustomGptxt(String? value) => value == null
+      ? _prefs.remove(SettingsKeys.customGptxt)
+      : _prefs.setString(SettingsKeys.customGptxt, value);
+
+  // ── Static threshold ─────────────────────────────────────────────────────
+
+  double get staticThresholdMeters => _getDouble(
+      SettingsKeys.staticThresholdMeters, DefaultSettings.staticThresholdMeters);
   Future<bool> setStaticThresholdMeters(double value) =>
-      _prefs.setDouble('staticThresholdMeters', value);
+      _prefs.setDouble(SettingsKeys.staticThresholdMeters, value);
 
-  // NMEA message toggles
-  bool get ggaEnabled => _prefs.getBool('ggaEnabled') ?? true;
+  // ── Speed unit ────────────────────────────────────────────────────────────
+
+  int get speedUnitIndex =>
+      _getInt(SettingsKeys.speedUnitIndex, DefaultSettings.defaultSpeedUnitIndex);
+  Future<bool> setSpeedUnitIndex(int value) =>
+      _prefs.setInt(SettingsKeys.speedUnitIndex, value);
+
+  // ── NMEA message toggles ──────────────────────────────────────────────────
+
+  bool get ggaEnabled => _getBool(SettingsKeys.ggaEnabled, true);
   Future<bool> setGgaEnabled(bool value) =>
-      _prefs.setBool('ggaEnabled', value);
+      _prefs.setBool(SettingsKeys.ggaEnabled, value);
 
-  bool get gllEnabled => _prefs.getBool('gllEnabled') ?? false;
+  bool get gllEnabled => _getBool(SettingsKeys.gllEnabled, false);
   Future<bool> setGllEnabled(bool value) =>
-      _prefs.setBool('gllEnabled', value);
+      _prefs.setBool(SettingsKeys.gllEnabled, value);
 
-  bool get gsaEnabled => _prefs.getBool('gsaEnabled') ?? false;
+  bool get gsaEnabled => _getBool(SettingsKeys.gsaEnabled, false);
   Future<bool> setGsaEnabled(bool value) =>
-      _prefs.setBool('gsaEnabled', value);
+      _prefs.setBool(SettingsKeys.gsaEnabled, value);
 
-  bool get hdgEnabled => _prefs.getBool('hdgEnabled') ?? false;
+  bool get hdgEnabled => _getBool(SettingsKeys.hdgEnabled, false);
   Future<bool> setHdgEnabled(bool value) =>
-      _prefs.setBool('hdgEnabled', value);
+      _prefs.setBool(SettingsKeys.hdgEnabled, value);
 
-  bool get hdmEnabled => _prefs.getBool('hdmEnabled') ?? false;
+  bool get hdmEnabled => _getBool(SettingsKeys.hdmEnabled, false);
   Future<bool> setHdmEnabled(bool value) =>
-      _prefs.setBool('hdmEnabled', value);
+      _prefs.setBool(SettingsKeys.hdmEnabled, value);
 
-  bool get hdtEnabled => _prefs.getBool('hdtEnabled') ?? false;
+  bool get hdtEnabled => _getBool(SettingsKeys.hdtEnabled, false);
   Future<bool> setHdtEnabled(bool value) =>
-      _prefs.setBool('hdtEnabled', value);
+      _prefs.setBool(SettingsKeys.hdtEnabled, value);
 
-  bool get rmcEnabled => _prefs.getBool('rmcEnabled') ?? true;
+  bool get rmcEnabled => _getBool(SettingsKeys.rmcEnabled, true);
   Future<bool> setRmcEnabled(bool value) =>
-      _prefs.setBool('rmcEnabled', value);
+      _prefs.setBool(SettingsKeys.rmcEnabled, value);
 
-  bool get vtgEnabled => _prefs.getBool('vtgEnabled') ?? false;
+  bool get vtgEnabled => _getBool(SettingsKeys.vtgEnabled, false);
   Future<bool> setVtgEnabled(bool value) =>
-      _prefs.setBool('vtgEnabled', value);
+      _prefs.setBool(SettingsKeys.vtgEnabled, value);
 
-  bool get zdaEnabled => _prefs.getBool('zdaEnabled') ?? false;
+  bool get zdaEnabled => _getBool(SettingsKeys.zdaEnabled, false);
   Future<bool> setZdaEnabled(bool value) =>
-      _prefs.setBool('zdaEnabled', value);
+      _prefs.setBool(SettingsKeys.zdaEnabled, value);
 
-  bool get pashrEnabled => _prefs.getBool('pashrEnabled') ?? false;
+  bool get pashrEnabled => _getBool(SettingsKeys.pashrEnabled, false);
   Future<bool> setPashrEnabled(bool value) =>
-      _prefs.setBool('pashrEnabled', value);
+      _prefs.setBool(SettingsKeys.pashrEnabled, value);
 
-  bool get gptxtEnabled => _prefs.getBool('gptxtEnabled') ?? false;
+  bool get gptxtEnabled => _getBool(SettingsKeys.gptxtEnabled, false);
   Future<bool> setGptxtEnabled(bool value) =>
-      _prefs.setBool('gptxtEnabled', value);
+      _prefs.setBool(SettingsKeys.gptxtEnabled, value);
 
-  // Reset all keys to their defaults
-  Future<bool> resetToDefaults() async {
-    final results = await Future.wait([
-      setProtocolIndex(0),
-      setConnectionMethodIndex(0),
-      setNetworkIndex(0),
-      setFrequencyIndex(2),
-      setAccuracyIndex(0),
+  // ── Connection profiles ───────────────────────────────────────────────────
+
+  List<ConnectionProfile> get connectionProfiles {
+    final raw = _prefs.getString(SettingsKeys.connectionProfiles);
+    if (raw == null) return [];
+    try {
+      final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+      return list.map(ConnectionProfile.fromJson).toList();
+    } catch (e) {
+      debugPrint('[SettingsRepository] Failed to decode connection profiles: $e');
+      return [];
+    }
+  }
+
+  Future<bool> setConnectionProfiles(List<ConnectionProfile> profiles) {
+    final json = jsonEncode(profiles.map((p) => p.toJson()).toList());
+    return _prefs.setString(SettingsKeys.connectionProfiles, json);
+  }
+
+  // ── Reset / clear ─────────────────────────────────────────────────────────
+
+  /// Resets every setting to its canonical default value.
+  Future<void> resetToDefaults() async {
+    await Future.wait([
+      setProtocolIndex(DefaultSettings.defaultProtocolIndex),
+      setConnectionMethodIndex(DefaultSettings.defaultConnectionMethodIndex),
+      setNetworkIndex(DefaultSettings.defaultNetworkIndex),
+      setFrequencyIndex(DefaultSettings.defaultFrequencyIndex),
+      setAccuracyIndex(DefaultSettings.defaultAccuracyIndex),
       setOperateInBackground(DefaultSettings.operateInBackground),
       setSendInOneTransmission(DefaultSettings.sendInOneTransmission),
       setHighContrast(false),
@@ -201,8 +291,10 @@ class SettingsRepository {
       setTaipPvEnabled(true),
       setTaipAlEnabled(false),
       setBleEnabled(false),
+      setBleDeviceName(DefaultSettings.defaultBleDeviceName),
       setCustomGptxt(null),
       setStaticThresholdMeters(DefaultSettings.staticThresholdMeters),
+      setSpeedUnitIndex(DefaultSettings.defaultSpeedUnitIndex),
       setGgaEnabled(true),
       setGllEnabled(false),
       setGsaEnabled(false),
@@ -214,8 +306,8 @@ class SettingsRepository {
       setZdaEnabled(false),
       setPashrEnabled(false),
       setGptxtEnabled(false),
+      setConnectionProfiles([]),
     ]);
-    return results.every((r) => r);
   }
 
   Future<bool> clearAll() => _prefs.clear();

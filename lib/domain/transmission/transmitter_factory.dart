@@ -8,6 +8,11 @@ import 'package:opengps_nmea/domain/transmission/udp_multicast_transmitter.dart'
 import 'package:opengps_nmea/domain/transmission/taip_udp_transmitter.dart';
 import 'package:opengps_nmea/domain/transmission/websocket_transmitter.dart';
 
+/// Factory interface — allows injection of a custom factory in tests.
+typedef TransmitterFactory = BaseTransmitter Function(int connectionMethodIndex);
+
+/// Default production factory. Exposed as a named function so it can be
+/// passed as a [TransmitterFactory] callback.
 BaseTransmitter createTransmitter(int connectionMethodIndex) {
   switch (connectionMethodIndex) {
     case ConnectionMethodPreset.socket:

@@ -5,14 +5,16 @@ import 'package:opengps_nmea/domain/models/gps_position.dart';
 
 /// Builds NMEA 0183 sentences from a [GpsPosition] and [AppSettings].
 ///
-/// OpenGPS-NMEA hardcodes many fields that iOS Core Location cannot provide
-/// (satellite IDs, HDOP, geoid separation, etc.). This builder replicates
-/// those exact hardcoded values so that downstream navigation software
-/// receives valid NMEA sentences.
+/// Some fields that iOS Core Location cannot provide (satellite IDs, HDOP,
+/// geoid separation) are hardcoded to realistic values so downstream
+/// navigation software receives structurally valid NMEA sentences.
+///
+/// Ownership of the "send in one transmission" bundling lives entirely here
+/// — [TransmissionCoordinator] must not re-bundle the result.
 class NmeaBuilder {
   const NmeaBuilder();
 
-  // ── Position sentences ──────────────────────────────────────────────
+  // ── Position sentences ──────────────────────────────────────────────────
 
   /// $GPGGA — Global Positioning System Fix Data.
   ///
@@ -37,20 +39,20 @@ class NmeaBuilder {
     final time = nmeaTimeField(pos.timestamp, withMilliseconds: true);
     final lat = nmeaLatToField(pos.latitude);
     final lon = nmeaLonToField(pos.longitude);
-    final status = pos.hasFix ? 'A' : 'V';
-    return buildNmeaSentence('GP', 'GLL', '$lat,$lon,$time,$status,A');
+    return buildNmeaSentence('GP', 'GLL', '$lat,$lon,$time,A,A');
   }
 
   /// $GPGSA — DOP and Active Satellites.
   ///
-  /// Entirely hardcoded: 3D fix, 12 satellite IDs, GNSS ID=1.
-  /// Does NOT depend on [GpsPosition].
+  /// Entirely hardcoded (iOS cannot provide individual satellite data).
+  /// Does NOT depend on [GpsPosition]; the parameter was removed to make
+  /// the signature honest.
   String buildGsa(AppSettings settings) {
     const sats = '03,04,05,06,07,08,09,10,11,12,13,14';
     return buildNmeaSentence('GP', 'GSA', 'A,3,$sats,1.23,4.56,7.89,1');
   }
 
-  // ── Heading sentences ───────────────────────────────────────────────
+  // ── Heading sentences ───────────────────────────────────────────────────
 
   /// $HCHDG — Heading – Magnetic + Deviation + Variation.
   ///
@@ -59,32 +61,25 @@ class NmeaBuilder {
     final heading = pos.heading;
     if (heading == null) return '';
     final headingStr = heading.toStringAsFixed(1);
-    // deviation fields empty, variation 5.0 E/W
-    final varDir = pos.heading! >= 0 ? 'E' : 'W';
+    final varDir = heading >= 0 ? 'E' : 'W';
     return buildNmeaSentence('HC', 'HDG', '$headingStr,,,5.0,$varDir');
   }
 
   /// $GPHDM — Heading – Magnetic.
-  ///
-  /// Returns empty string when heading is null.
   String buildHdm(GpsPosition pos, AppSettings settings) {
     final heading = pos.heading;
     if (heading == null) return '';
-    final headingStr = heading.toStringAsFixed(2);
-    return buildNmeaSentence('GP', 'HDM', '$headingStr,M');
+    return buildNmeaSentence('GP', 'HDM', '${heading.toStringAsFixed(2)},M');
   }
 
   /// $GPHDT — Heading – True.
-  ///
-  /// Returns empty string when heading is null.
   String buildHdt(GpsPosition pos, AppSettings settings) {
     final heading = pos.heading;
     if (heading == null) return '';
-    final headingStr = heading.toStringAsFixed(2);
-    return buildNmeaSentence('GP', 'HDT', '$headingStr,T');
+    return buildNmeaSentence('GP', 'HDT', '${heading.toStringAsFixed(2)},T');
   }
 
-  // ── Recommended Minimum & Track ─────────────────────────────────────
+  // ── Recommended Minimum & Track ─────────────────────────────────────────
 
   /// $GPRMC — Recommended Minimum Specific GNSS Data.
   String buildRmc(GpsPosition pos, AppSettings settings) {
@@ -115,26 +110,22 @@ class NmeaBuilder {
     );
   }
 
-  // ── Time & date ─────────────────────────────────────────────────────
+  // ── Time & date ─────────────────────────────────────────────────────────
 
   /// $GPZDA — Time & Date.
   String buildZda(GpsPosition pos, AppSettings settings) {
-    final time = nmeaTimeField(pos.timestamp); // no milliseconds
+    final time = nmeaTimeField(pos.timestamp);
     final day = pos.timestamp.day.toString().padLeft(2, '0');
     final month = pos.timestamp.month.toString().padLeft(2, '0');
     final year = pos.timestamp.year.toString();
-    return buildNmeaSentence(
-      'GP',
-      'ZDA',
-      '$time,$day,$month,$year,00,00',
-    );
+    return buildNmeaSentence('GP', 'ZDA', '$time,$day,$month,$year,00,00');
   }
 
-  // ── Proprietary / extended ──────────────────────────────────────────
+  // ── Proprietary / extended ──────────────────────────────────────────────
 
   /// $PASHR — Attitude Data (Ashtech-compatible).
   String buildPashr(GpsPosition pos, AppSettings settings) {
-    final time = nmeaTimeField(pos.timestamp); // no milliseconds
+    final time = nmeaTimeField(pos.timestamp);
     final heading = pos.heading?.toStringAsFixed(2) ?? '0.00';
     final trueOrMag = settings.trueNorth ? 'T' : '';
     final tOrM = settings.trueNorth ? 'T' : 'M';
@@ -154,13 +145,16 @@ class NmeaBuilder {
     return buildNmeaSentence('GP', 'TXT', '01,01,02,$text');
   }
 
-  // ── Orchestration ───────────────────────────────────────────────────
+  // ── Orchestration ────────────────────────────────────────────────────────
 
   /// Builds all enabled NMEA sentences based on [settings] toggles.
   ///
   /// When [AppSettings.sendInOneTransmission] is true, returns a
-  /// single-element list with all sentences concatenated (no separator).
-  /// Otherwise each sentence is a separate list element.
+  /// single-element list with all sentences concatenated, terminated by a
+  /// single `\r\n`. Otherwise each sentence is a separate list element.
+  ///
+  /// This method is the single owner of the bundling logic — callers must
+  /// NOT re-bundle the result.
   List<String> buildAllEnabled(GpsPosition pos, AppSettings settings) {
     final sentences = <String>[];
 
@@ -209,11 +203,12 @@ class NmeaBuilder {
       if (s.isNotEmpty) sentences.add(s);
     }
 
-    if (settings.sendInOneTransmission && sentences.isNotEmpty) {
-      // Strip trailing \r\n from each sentence and join, then add \r\n at end
+    if (sentences.isEmpty) return [];
+
+    if (settings.sendInOneTransmission) {
+      // Strip trailing \r\n from each sentence then join, appending a single \r\n.
       final joined = sentences.map((s) {
-        if (s.endsWith('\r\n')) return s.substring(0, s.length - 2);
-        return s;
+        return s.endsWith('\r\n') ? s.substring(0, s.length - 2) : s;
       }).join('');
       return ['$joined\r\n'];
     }

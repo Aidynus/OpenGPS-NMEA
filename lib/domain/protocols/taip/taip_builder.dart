@@ -10,7 +10,7 @@ import '../../models/app_settings.dart';
 class TaipBuilder {
   const TaipBuilder();
 
-  // ── Public API ──────────────────────────────────────────────────────
+  // ── Public API ──────────────────────────────────────────────────────────
 
   /// Builds a PV (Position/Velocity) TAIP message.
   ///
@@ -61,7 +61,7 @@ class TaipBuilder {
     return messages;
   }
 
-  // ── Formatters ──────────────────────────────────────────────────────
+  // ── Formatters ──────────────────────────────────────────────────────────
 
   /// Formats a [DateTime] as HHMMSS (UTC-based time of day).
   String formatTaipTime(DateTime dt) {
@@ -70,16 +70,12 @@ class TaipBuilder {
   }
 
   /// Formats latitude as ±DDMMSSss.
-  /// Positive (North) → `+`, Negative (South) → `-`.
-  /// DD = degrees, MM = minutes, SS = seconds, ss = hundredths of seconds.
   String formatTaipLatitude(double lat) {
     final sign = lat >= 0 ? '+' : '-';
     return sign + _dmsString(lat.abs(), degDigits: 2);
   }
 
   /// Formats longitude as ±DDDMMSSss.
-  /// Positive (East) → `+`, Negative (West) → `-`.
-  /// DDD = degrees, MM = minutes, SS = seconds, ss = hundredths of seconds.
   String formatTaipLongitude(double lon) {
     final sign = lon >= 0 ? '+' : '-';
     return sign + _dmsString(lon.abs(), degDigits: 3);
@@ -94,7 +90,7 @@ class TaipBuilder {
     return checksum & 0xFF;
   }
 
-  // ── Internals ───────────────────────────────────────────────────────
+  // ── Internals ────────────────────────────────────────────────────────────
 
   /// Wraps a TAIP message body: `>R{body};ID={deviceId};*{checksum}<`
   String _wrapMessage(String body, String deviceId) {
@@ -104,18 +100,21 @@ class TaipBuilder {
   }
 
   /// Converts decimal degrees to DMS string with hundredths of seconds.
-  /// Returns DDMMSSss or DDDMMSSss depending on [degDigits].
+  ///
+  /// Uses proper integer carry arithmetic instead of recursion to handle
+  /// rounding overflow (e.g. 59.999° → 60°).
   String _dmsString(double decimalDegrees, {required int degDigits}) {
-    final deg = decimalDegrees.floor();
-    final minDecimal = (decimalDegrees - deg) * 60;
-    final min = minDecimal.floor();
-    final secDecimal = (minDecimal - min) * 60;
-    final sec = secDecimal.floor();
-    final secHundredths = ((secDecimal - sec) * 100).round();
-    // Handle rounding overflow (e.g. 59.996 → 60.00 → carry)
-    if (secHundredths >= 100) {
-      return _dmsString(decimalDegrees + 0.00001, degDigits: degDigits);
-    }
+    // Work in integer hundredths-of-seconds to avoid floating point drift.
+    // 1 degree = 360000 hundredths-of-seconds
+    final totalHundredths = (decimalDegrees * 360000).round();
+
+    final secHundredths = totalHundredths % 100;
+    var totalSeconds = totalHundredths ~/ 100;
+    final sec = totalSeconds % 60;
+    var totalMinutes = totalSeconds ~/ 60;
+    final min = totalMinutes % 60;
+    final deg = totalMinutes ~/ 60;
+
     return '${deg.toString().padLeft(degDigits, '0')}'
         '${min.toString().padLeft(2, '0')}'
         '${sec.toString().padLeft(2, '0')}'
@@ -128,7 +127,7 @@ class TaipBuilder {
     return '$sign${cmPerSec.abs().toString().padLeft(5, '0')}';
   }
 
-  // ── Padding helpers ─────────────────────────────────────────────────
+  // ── Padding helpers ──────────────────────────────────────────────────────
 
   static String _pad2(int n) => n.toString().padLeft(2, '0');
   static String _pad4(int n) => n.toString().padLeft(4, '0');
