@@ -44,6 +44,9 @@ dependencies:
   # WebSocket support
   web_socket_channel: ^3.0.2
 
+  # Share / copy NMEA output
+  share_plus: ^10.0.3
+
 
 
 

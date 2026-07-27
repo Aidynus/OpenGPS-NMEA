@@ -5,6 +5,17 @@ import '../../core/constants/app_constants.dart';
 part 'app_settings.freezed.dart';
 part 'app_settings.g.dart';
 
+/// Type-safe protocol selector — replaces the raw [int] protocolIndex.
+enum ProtocolType {
+  nmea,
+  taip;
+
+  static ProtocolType fromIndex(int presetIndex) =>
+      presetIndex == ProtocolPreset.taip ? ProtocolType.taip : ProtocolType.nmea;
+
+  int get toPresetIndex => this == ProtocolType.taip ? ProtocolPreset.taip : ProtocolPreset.nmea;
+}
+
 @freezed
 class AppSettings with _$AppSettings {
   const factory AppSettings({
@@ -27,10 +38,12 @@ class AppSettings with _$AppSettings {
     required int socketPort,
     required String taipDeviceId,
     required bool bleEnabled,
+    required String bleDeviceName,
     String? customGptxt,
     required int websocketPort,
     String? websocketUrl,
     required double staticThresholdMeters,
+    required int speedUnitIndex,
     required bool ggaEnabled,
     required bool gllEnabled,
     required bool gsaEnabled,
@@ -48,12 +61,17 @@ class AppSettings with _$AppSettings {
 
   const AppSettings._();
 
+  // ── Derived convenience accessors ──────────────────────────────────
+
+  /// Typed protocol accessor — avoids raw-int comparisons in the codebase.
+  ProtocolType get protocol => ProtocolType.fromIndex(protocolIndex);
+
   factory AppSettings.defaults() => const AppSettings(
-        protocolIndex: 0,
-        connectionMethodIndex: 0,
-        networkIndex: 0,
-        frequencyIndex: 2,
-        accuracyIndex: 0,
+        protocolIndex: DefaultSettings.defaultProtocolIndex,
+        connectionMethodIndex: DefaultSettings.defaultConnectionMethodIndex,
+        networkIndex: DefaultSettings.defaultNetworkIndex,
+        frequencyIndex: DefaultSettings.defaultFrequencyIndex,
+        accuracyIndex: DefaultSettings.defaultAccuracyIndex,
         operateInBackground: DefaultSettings.operateInBackground,
         sendInOneTransmission: DefaultSettings.sendInOneTransmission,
         highContrast: false,
@@ -68,10 +86,12 @@ class AppSettings with _$AppSettings {
         socketPort: DefaultSettings.defaultPort,
         taipDeviceId: DefaultSettings.defaultTaipDeviceId,
         bleEnabled: false,
+        bleDeviceName: DefaultSettings.defaultBleDeviceName,
         customGptxt: null,
         websocketPort: DefaultSettings.defaultWebsocketPort,
         websocketUrl: null,
         staticThresholdMeters: DefaultSettings.staticThresholdMeters,
+        speedUnitIndex: DefaultSettings.defaultSpeedUnitIndex,
         ggaEnabled: true,
         gllEnabled: false,
         gsaEnabled: false,

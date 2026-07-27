@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -9,12 +10,13 @@ import 'package:opengps_nmea/domain/transmission/abstract_transmitter.dart';
 class UdpMulticastTransmitter extends BaseTransmitter {
   RawDatagramSocket? _socket;
   InternetAddress? _groupAddress;
-  int _port = 11123;
+  int _port = 0;
   NetworkInterface? _networkInterface;
 
   @override
   Future<void> start(AppSettings settings) async {
     if (isRunning) return;
+    setStatus(TransmitterStatus.connecting);
 
     _port = settings.targetPort;
 
@@ -24,9 +26,8 @@ class UdpMulticastTransmitter extends BaseTransmitter {
       final interfaces = await NetworkInterface.list();
       if (interfaces.isNotEmpty) {
         _networkInterface = interfaces.firstWhere(
-          (iface) => iface.addresses.any(
-            (addr) => addr.type == InternetAddressType.IPv4,
-          ),
+          (iface) => iface.addresses
+              .any((addr) => addr.type == InternetAddressType.IPv4),
           orElse: () => interfaces.first,
         );
       }
@@ -42,9 +43,11 @@ class UdpMulticastTransmitter extends BaseTransmitter {
 
       setRunning(true);
       setClientCount(1);
+      setStatus(TransmitterStatus.connected);
     } catch (e) {
       setRunning(false);
       setClientCount(0);
+      setStatus(TransmitterStatus.error);
       rethrow;
     }
   }
@@ -69,13 +72,19 @@ class UdpMulticastTransmitter extends BaseTransmitter {
     _networkInterface = null;
     setClientCount(0);
     setRunning(false);
+    setStatus(TransmitterStatus.idle);
   }
 
   @override
   Future<void> send(String data) async {
     if (!isRunning || _socket == null || _groupAddress == null) return;
 
-    final bytes = data.codeUnits;
-    _socket!.send(bytes, _groupAddress!, _port);
+    final bytes = utf8.encode(data);
+    final sent = _socket!.send(bytes, _groupAddress!, _port);
+    if (sent > 0) {
+      recordSuccessfulSend();
+    } else {
+      debugPrint('[UdpMulticastTransmitter] send returned $sent (packet dropped?)');
+    }
   }
 }

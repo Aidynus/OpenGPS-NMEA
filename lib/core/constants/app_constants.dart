@@ -61,15 +61,28 @@ abstract class NetworkPreset {
   static const int ble = 3;
 }
 
+/// Speed unit presets for display and export.
+abstract class SpeedUnitPreset {
+  static const int knots = 0;
+  static const int kmh = 1;
+  static const int mph = 2;
+  static const int ms = 3;
+}
+
 /// Single source of truth for all default app settings.
 ///
-/// These values are referenced by [AppSettings.defaults()],
-/// [SettingsRepository] inline defaults, and [SettingsRepository.resetToDefaults()].
-/// Changing a value here updates it everywhere.
+/// Every default value is defined here exactly once. [AppSettings.defaults()],
+/// [SettingsRepository] fallbacks, and [SettingsRepository.resetToDefaults()]
+/// all reference these constants so a change here propagates everywhere.
 abstract class DefaultSettings {
   // ── Operational ─────────────────────────────────────────────────────
   static const bool operateInBackground = true;
   static const bool sendInOneTransmission = false;
+  static const int defaultFrequencyIndex = TransmissionFrequencyPreset.fiveSeconds;
+  static const int defaultAccuracyIndex = GpsAccuracyPreset.best;
+  static const int defaultProtocolIndex = ProtocolPreset.nmea;
+  static const int defaultConnectionMethodIndex = ConnectionMethodPreset.socket;
+  static const int defaultNetworkIndex = NetworkPreset.wifi;
 
   // ── Network ─────────────────────────────────────────────────────────
   static const int defaultPort = 11123;
@@ -83,6 +96,60 @@ abstract class DefaultSettings {
   // ── GPS ─────────────────────────────────────────────────────────────
   static const double staticThresholdMeters = 1.5;
 
+  // ── BLE ─────────────────────────────────────────────────────────────
+  static const String defaultBleDeviceName = 'OpenGPS-NMEA';
+
+  // ── Display ─────────────────────────────────────────────────────────
+  static const int defaultSpeedUnitIndex = SpeedUnitPreset.knots;
+
   // ── Timeouts ────────────────────────────────────────────────────────
   static const int liteTimeoutSeconds = 240;
+  static const int tcpKeepaliveSeconds = 30;
+  static const int tcpIdleTimeoutSeconds = 120;
+}
+
+/// Centralized key names for [SharedPreferences] storage.
+///
+/// Using a single constant per key ensures that a typo cannot silently
+/// fall through to a default value, losing user data.
+abstract class SettingsKeys {
+  static const String protocolIndex = 'protocolIndex';
+  static const String connectionMethodIndex = 'connectionMethodIndex';
+  static const String networkIndex = 'networkIndex';
+  static const String frequencyIndex = 'frequencyIndex';
+  static const String accuracyIndex = 'accuracyIndex';
+  static const String operateInBackground = 'operateInBackground';
+  static const String sendInOneTransmission = 'sendInOneTransmission';
+  static const String highContrast = 'highContrast';
+  static const String trueNorth = 'trueNorth';
+  static const String operateWhenTerminated = 'operateWhenTerminated';
+  static const String disableWhenStatic = 'disableWhenStatic';
+  static const String displayDecimalMinutes = 'displayDecimalMinutes';
+  static const String passwordHash = 'passwordHash';
+  static const String targetIpAddress = 'targetIpAddress';
+  static const String targetPort = 'targetPort';
+  static const String multicastGroupAddress = 'multicastGroupAddress';
+  static const String socketPort = 'socketPort';
+  static const String websocketPort = 'websocketPort';
+  static const String websocketUrl = 'websocketUrl';
+  static const String taipDeviceId = 'taipDeviceId';
+  static const String taipPvEnabled = 'taipPvEnabled';
+  static const String taipAlEnabled = 'taipAlEnabled';
+  static const String bleEnabled = 'bleEnabled';
+  static const String bleDeviceName = 'bleDeviceName';
+  static const String customGptxt = 'customGptxt';
+  static const String staticThresholdMeters = 'staticThresholdMeters';
+  static const String ggaEnabled = 'ggaEnabled';
+  static const String gllEnabled = 'gllEnabled';
+  static const String gsaEnabled = 'gsaEnabled';
+  static const String hdgEnabled = 'hdgEnabled';
+  static const String hdmEnabled = 'hdmEnabled';
+  static const String hdtEnabled = 'hdtEnabled';
+  static const String rmcEnabled = 'rmcEnabled';
+  static const String vtgEnabled = 'vtgEnabled';
+  static const String zdaEnabled = 'zdaEnabled';
+  static const String pashrEnabled = 'pashrEnabled';
+  static const String gptxtEnabled = 'gptxtEnabled';
+  static const String speedUnitIndex = 'speedUnitIndex';
+  static const String connectionProfiles = 'connectionProfiles';
 }

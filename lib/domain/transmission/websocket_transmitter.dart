@@ -10,6 +10,7 @@ class WebSocketTransmitter extends BaseTransmitter {
   AppSettings? _currentSettings;
   bool _intentionalStop = false;
   Timer? _reconnectTimer;
+  // Clamp to [0, 5] → max delay = 1s * 2^5 = 32s, comfortably over the 30s cap.
   int _reconnectAttempts = 0;
 
   static const Duration _initialReconnectDelay = Duration(seconds: 1);
@@ -27,6 +28,7 @@ class WebSocketTransmitter extends BaseTransmitter {
 
   Future<void> _connect(AppSettings settings) async {
     if (_intentionalStop) return;
+    setStatus(TransmitterStatus.connecting);
 
     final url = _buildWebSocketUrl(settings);
 
@@ -34,6 +36,8 @@ class WebSocketTransmitter extends BaseTransmitter {
       _channel = WebSocketChannel.connect(Uri.parse(url));
       setRunning(true);
       setClientCount(1);
+      _reconnectAttempts = 0;
+      setStatus(TransmitterStatus.connected);
 
       _channel!.stream.listen(
         (_) {},
@@ -44,6 +48,7 @@ class WebSocketTransmitter extends BaseTransmitter {
     } catch (_) {
       setRunning(false);
       setClientCount(0);
+      setStatus(TransmitterStatus.reconnecting);
       _scheduleReconnect();
     }
   }
@@ -65,6 +70,7 @@ class WebSocketTransmitter extends BaseTransmitter {
     _channel = null;
     setRunning(false);
     setClientCount(0);
+    setStatus(TransmitterStatus.reconnecting);
     _scheduleReconnect();
   }
 
@@ -72,10 +78,9 @@ class WebSocketTransmitter extends BaseTransmitter {
     if (_intentionalStop || _currentSettings == null) return;
 
     _reconnectTimer?.cancel();
-    final delay = Duration(
-      milliseconds: _initialReconnectDelay.inMilliseconds *
-          (1 << _reconnectAttempts.clamp(0, 4)),
-    );
+    final delayMs = _initialReconnectDelay.inMilliseconds *
+        (1 << _reconnectAttempts.clamp(0, 5));
+    final delay = Duration(milliseconds: delayMs);
     final cappedDelay = delay > _maxReconnectDelay ? _maxReconnectDelay : delay;
 
     _reconnectTimer = Timer(cappedDelay, () {
@@ -97,6 +102,7 @@ class WebSocketTransmitter extends BaseTransmitter {
 
     setClientCount(0);
     setRunning(false);
+    setStatus(TransmitterStatus.idle);
   }
 
   @override
@@ -105,6 +111,7 @@ class WebSocketTransmitter extends BaseTransmitter {
 
     try {
       _channel!.sink.add(data);
+      recordSuccessfulSend();
     } catch (_) {
       _handleDisconnect();
     }
