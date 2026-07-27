@@ -9,6 +9,7 @@ import '../../../data/providers/location_provider.dart';
 import '../../../data/providers/transmission_provider.dart';
 import '../../../domain/models/gps_position.dart';
 import '../../../domain/models/network_info.dart';
+import '../../../domain/transmission/abstract_transmitter.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -17,53 +18,139 @@ class MainScreen extends ConsumerStatefulWidget {
   ConsumerState<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends ConsumerState<MainScreen> {
+class _MainScreenState extends ConsumerState<MainScreen>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Verify transmitter is still healthy after returning from background.
+      ref.read(transmissionCoordinatorProvider.notifier).verifyHealth();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final connectionMethodIndex = ref.watch(appSettingsProvider.select((s) => s.connectionMethodIndex));
-    final socketPort = ref.watch(appSettingsProvider.select((s) => s.socketPort));
-    final bleEnabled = ref.watch(appSettingsProvider.select((s) => s.bleEnabled));
+    final connectionMethodIndex =
+        ref.watch(appSettingsProvider.select((s) => s.connectionMethodIndex));
+    final socketPort =
+        ref.watch(appSettingsProvider.select((s) => s.socketPort));
+    final bleEnabled =
+        ref.watch(appSettingsProvider.select((s) => s.bleEnabled));
     final networkInfo = ref.watch(networkInfoProvider);
-    final isActive = ref.watch(transmissionCoordinatorProvider.select((s) => s.isActive));
-    final clientCount = ref.watch(transmissionCoordinatorProvider.select((s) => s.clientCount));
-    final totalTxCount = ref.watch(transmissionCoordinatorProvider.select((s) => s.totalTxCount));
-    final totalRxCount = ref.watch(transmissionCoordinatorProvider.select((s) => s.totalRxCount));
+    final txState = ref.watch(transmissionCoordinatorProvider);
+    final settingsReady = ref.watch(settingsReadyProvider);
+    final passwordHash =
+        ref.watch(appSettingsProvider.select((s) => s.passwordHash));
+
+    // Show transmission errors as a snackbar.
+    ref.listen(transmissionCoordinatorProvider.select((s) => s.error),
+        (_, error) {
+      if (error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: 'Dismiss',
+              textColor: Colors.white,
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+            ),
+          ),
+        );
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('OpenGPS-NMEA'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => context.push('/settings'),
+            icon: const Icon(Icons.terminal_outlined),
+            tooltip: 'Sentence log',
+            onPressed: () => context.push('/log'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () {
+              if (passwordHash != null && passwordHash.isNotEmpty) {
+                context.push('/lock');
+              } else {
+                context.push('/settings');
+              }
+            },
           ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildToggleCard(isActive),
-          const SizedBox(height: 16),
-          const _PositionCardWidget(),
-          const SizedBox(height: 16),
-          _buildStatusCard(isActive, totalTxCount, totalRxCount, clientCount, networkInfo, connectionMethodIndex, socketPort, bleEnabled),
+          if (!settingsReady)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else ...[
+            _buildToggleCard(txState.isActive, txState),
+            const SizedBox(height: 16),
+            const _PositionCardWidget(),
+            const SizedBox(height: 16),
+            _buildStatusCard(
+              txState,
+              networkInfo,
+              connectionMethodIndex,
+              socketPort,
+              bleEnabled,
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildToggleCard(bool isActive) {
+  Widget _buildToggleCard(bool isActive, TransmissionState txState) {
+    final transmitterStatus = txState.transmitterStatus;
+    final statusLabel = switch (transmitterStatus) {
+      TransmitterStatus.idle => 'Off',
+      TransmitterStatus.connecting => 'Connecting…',
+      TransmitterStatus.connected => 'Active',
+      TransmitterStatus.reconnecting => 'Reconnecting…',
+      TransmitterStatus.error => 'Error',
+    };
+    final statusColor = switch (transmitterStatus) {
+      TransmitterStatus.connected => Colors.green,
+      TransmitterStatus.connecting ||
+      TransmitterStatus.reconnecting =>
+        Colors.orange,
+      TransmitterStatus.error => Colors.red,
+      TransmitterStatus.idle => Colors.grey,
+    };
+
     return Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
             AnimatedSwitcher(
               duration: Durations.short4,
               child: Icon(
-                key: ValueKey(isActive),
+                key: ValueKey(transmitterStatus),
                 isActive ? Icons.power_settings_new : Icons.power_off,
-                color: isActive ? Colors.green : Colors.grey,
+                color: statusColor,
                 size: 32,
               ),
             ),
@@ -72,12 +159,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               child: AnimatedSwitcher(
                 duration: Durations.short4,
                 child: Text(
-                  key: ValueKey(isActive),
-                  isActive ? 'Active' : 'Off',
+                  key: ValueKey(transmitterStatus),
+                  statusLabel,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: isActive ? Colors.green : Colors.grey,
+                    color: statusColor,
                   ),
                 ),
               ),
@@ -87,11 +174,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               onChanged: (value) {
                 HapticFeedback.mediumImpact();
                 if (value) {
-                  ref.read(transmissionCoordinatorProvider.notifier).start();
-                  ref.read(connectionStatusProvider.notifier).setActive(true);
+                  ref
+                      .read(transmissionCoordinatorProvider.notifier)
+                      .start();
                 } else {
-                  ref.read(transmissionCoordinatorProvider.notifier).stop();
-                  ref.read(connectionStatusProvider.notifier).setActive(false);
+                  ref
+                      .read(transmissionCoordinatorProvider.notifier)
+                      .stop();
                 }
               },
             ),
@@ -102,29 +191,36 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   Widget _buildStatusCard(
-    bool isActive,
-    int totalTxCount,
-    int totalRxCount,
-    int clientCount,
-    AsyncValue<NetworkInfo?> networkInfo,
+    TransmissionState txState,
+    AsyncValue<NetworkInfo> networkInfo,
     int connectionMethodIndex,
     int socketPort,
     bool bleEnabled,
   ) {
+    final lastTx = txState.lastTxTime;
+    final lastTxStr = lastTx == null
+        ? '—'
+        : '${lastTx.hour.toString().padLeft(2, '0')}:'
+            '${lastTx.minute.toString().padLeft(2, '0')}:'
+            '${lastTx.second.toString().padLeft(2, '0')}';
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Status',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
+            const Text('Status',
+                style:
+                    TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const Divider(),
-            _StatusRowWidget(label: 'Tx', value: totalTxCount.toString()),
-            _StatusRowWidget(label: 'Rx', value: totalRxCount.toString()),
-            _StatusRowWidget(label: 'Clients', value: clientCount.toString()),
+            _StatusRowWidget(
+                label: 'Tx', value: txState.totalTxCount.toString()),
+            _StatusRowWidget(
+                label: 'Rx', value: txState.totalRxCount.toString()),
+            _StatusRowWidget(
+                label: 'Clients', value: txState.clientCount.toString()),
+            _StatusRowWidget(label: 'Last Tx', value: lastTxStr),
             const Divider(),
             networkInfo.when(
               data: (info) {
@@ -132,28 +228,35 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 return Column(
                   children: [
                     if (info.wifiIp != null)
-                      _StatusRowWidget(label: 'WiFi IP', value: info.wifiIp!),
+                      _StatusRowWidget(
+                          label: 'WiFi IP', value: info.wifiIp!),
                     if (info.cellularIp != null)
-                      _StatusRowWidget(label: 'Cellular IP', value: info.cellularIp!),
+                      _StatusRowWidget(
+                          label: 'Cellular IP', value: info.cellularIp!),
                     if (info.hotspotIp != null)
-                      _StatusRowWidget(label: 'Hotspot IP', value: info.hotspotIp!),
+                      _StatusRowWidget(
+                          label: 'Hotspot IP', value: info.hotspotIp!),
                   ],
                 );
               },
               loading: () => const _LoadingRow(),
-              error: (_, _) => const Padding(
+              error: (_, __) => const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: Row(
                   children: [
-                    Icon(Icons.warning_amber, size: 16, color: Colors.orange),
+                    Icon(Icons.warning_amber,
+                        size: 16, color: Colors.orange),
                     SizedBox(width: 8),
-                    Text('Network info unavailable', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                    Text('Network info unavailable',
+                        style: TextStyle(
+                            color: Colors.grey, fontSize: 13)),
                   ],
                 ),
               ),
             ),
             if (connectionMethodIndex == ConnectionMethodPreset.socket)
-              _StatusRowWidget(label: 'Port', value: socketPort.toString()),
+              _StatusRowWidget(
+                  label: 'Port', value: socketPort.toString()),
             _buildBleStatus(bleEnabled),
           ],
         ),
@@ -164,38 +267,22 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   Widget _buildBleStatus(bool bleEnabled) {
     if (!bleEnabled) return const SizedBox.shrink();
 
-    final bleStatus = ref.watch(connectionStatusProvider).bleStatus;
-    final icon = switch (bleStatus) {
-      'connected' => Icons.bluetooth_connected,
-      'advertising' => Icons.bluetooth_searching,
-      _ => Icons.bluetooth_disabled,
-    };
-    final color = switch (bleStatus) {
-      'connected' => Colors.blue,
-      'advertising' => Colors.blue.shade300,
-      _ => Colors.grey,
-    };
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+    // BLE status is carried in connection status; use transmitter status
+    // for now since BLE peripheral is injected separately.
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text('BLE', style: TextStyle(color: Colors.grey)),
-          AnimatedSwitcher(
-            duration: Durations.short4,
-            child: Row(
-              key: ValueKey(bleStatus ?? 'disabled'),
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 18, color: color),
-                const SizedBox(width: 4),
-                Text(
-                  bleStatus ?? 'disabled',
-                  style: TextStyle(color: color, fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
+          Text('BLE', style: TextStyle(color: Colors.grey)),
+          Row(
+            children: [
+              Icon(Icons.bluetooth_searching, size: 18, color: Colors.blue),
+              SizedBox(width: 4),
+              Text('advertising',
+                  style: TextStyle(
+                      color: Colors.blue, fontWeight: FontWeight.w500)),
+            ],
           ),
         ],
       ),
@@ -203,13 +290,18 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 }
 
+// ── Position card ─────────────────────────────────────────────────────────────
+
 class _PositionCardWidget extends ConsumerWidget {
   const _PositionCardWidget();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pos = ref.watch(lastKnownPositionProvider);
-    final displayDecimalMinutes = ref.watch(appSettingsProvider.select((s) => s.displayDecimalMinutes));
+    final displayDecimalMinutes = ref.watch(
+        appSettingsProvider.select((s) => s.displayDecimalMinutes));
+    final speedUnitIndex =
+        ref.watch(appSettingsProvider.select((s) => s.speedUnitIndex));
     final permissionError = ref.watch(locationPermissionErrorProvider);
     final hasPosition = pos != null && pos.hasFix;
 
@@ -221,10 +313,9 @@ class _PositionCardWidget extends ConsumerWidget {
           children: [
             Row(
               children: [
-                const Text(
-                  'Position',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
+                const Text('Position',
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w600)),
                 const Spacer(),
                 _AccuracyDotWidget(pos: pos),
               ],
@@ -255,55 +346,16 @@ class _PositionCardWidget extends ConsumerWidget {
                           key: ValueKey('no-fix'),
                           child: Padding(
                             padding: EdgeInsets.symmetric(vertical: 24),
-                            child: Text(
-                              'No Fix',
-                              style:
-                                  TextStyle(fontSize: 18, color: Colors.grey),
-                            ),
+                            child: Text('No Fix',
+                                style: TextStyle(
+                                    fontSize: 18, color: Colors.grey)),
                           ),
                         )
-                      : Column(
+                      : _PositionData(
                           key: const ValueKey('position-data'),
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SelectableText(
-                              displayDecimalMinutes
-                                  ? '${decimalToDecimalMinutesLatitude(pos.latitude, 4)}\n${decimalToDecimalMinutesLongitude(pos.longitude, 4)}'
-                                  : '${decimalToDmsLatitude(pos.latitude, 2)}\n${decimalToDmsLongitude(pos.longitude, 2)}',
-                              style: const TextStyle(
-                                fontFamily: 'monospace',
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 12,
-                              runSpacing: 12,
-                              children: [
-                                if (pos.altitude != null)
-                                  _ChipWidget(
-                                      label: 'Alt',
-                                      value:
-                                          '${pos.altitude!.toStringAsFixed(1)} m'),
-                                if (pos.speed != null) ...[
-                                  _ChipWidget(
-                                      label: 'Speed',
-                                      value:
-                                          '${(pos.speed! * 1.94384).toStringAsFixed(1)} kn'),
-                                  _ChipWidget(
-                                      label: 'Speed',
-                                      value:
-                                          '${(pos.speed! * 3.6).toStringAsFixed(1)} km/h'),
-                                ],
-                                if (pos.heading != null)
-                                  _ChipWidget(
-                                      label: 'Course',
-                                      value:
-                                          '${pos.heading!.toStringAsFixed(1)}° ${_headingToCardinal(pos.heading!)}'),
-                              ],
-                            ),
-                          ],
+                          pos: pos,
+                          displayDecimalMinutes: displayDecimalMinutes,
+                          speedUnitIndex: speedUnitIndex,
                         ),
             ),
           ],
@@ -311,14 +363,108 @@ class _PositionCardWidget extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _PositionData extends StatelessWidget {
+  final GpsPosition pos;
+  final bool displayDecimalMinutes;
+  final int speedUnitIndex;
+
+  const _PositionData({
+    super.key,
+    required this.pos,
+    required this.displayDecimalMinutes,
+    required this.speedUnitIndex,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final speedWidgets = _buildSpeedChips();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SelectableText(
+          displayDecimalMinutes
+              ? '${decimalToDecimalMinutesLatitude(pos.latitude, 4)}\n'
+                  '${decimalToDecimalMinutesLongitude(pos.longitude, 4)}'
+              : '${decimalToDmsLatitude(pos.latitude, 2)}\n'
+                  '${decimalToDmsLongitude(pos.longitude, 2)}',
+          style: const TextStyle(
+            fontFamily: 'monospace',
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            if (pos.altitude != null)
+              _ChipWidget(
+                  label: 'Alt',
+                  value: '${pos.altitude!.toStringAsFixed(1)} m'),
+            ...speedWidgets,
+            if (pos.heading != null)
+              _ChipWidget(
+                label: 'Course',
+                value:
+                    '${pos.heading!.toStringAsFixed(1)}° ${_headingToCardinal(pos.heading!)}',
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _buildSpeedChips() {
+    final speed = pos.speed;
+    if (speed == null) return [];
+
+    switch (speedUnitIndex) {
+      case SpeedUnitPreset.knots:
+        return [
+          _ChipWidget(
+              label: 'Speed',
+              value: '${(speed * 1.94384).toStringAsFixed(1)} kn')
+        ];
+      case SpeedUnitPreset.kmh:
+        return [
+          _ChipWidget(
+              label: 'Speed',
+              value: '${(speed * 3.6).toStringAsFixed(1)} km/h')
+        ];
+      case SpeedUnitPreset.mph:
+        return [
+          _ChipWidget(
+              label: 'Speed',
+              value: '${(speed * 2.23694).toStringAsFixed(1)} mph')
+        ];
+      case SpeedUnitPreset.ms:
+        return [
+          _ChipWidget(
+              label: 'Speed', value: '${speed.toStringAsFixed(1)} m/s')
+        ];
+      default:
+        return [
+          _ChipWidget(
+              label: 'Speed',
+              value: '${(speed * 1.94384).toStringAsFixed(1)} kn')
+        ];
+    }
+  }
 
   String _headingToCardinal(double heading) {
-    const cardinals = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
-        'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+    const cardinals = [
+      'N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+      'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'
+    ];
     final index = ((heading + 11.25) / 22.5).floor() % 16;
     return cardinals[index];
   }
 }
+
+// ── Supporting widgets ────────────────────────────────────────────────────────
 
 class _LoadingRow extends StatelessWidget {
   const _LoadingRow();
@@ -327,7 +473,12 @@ class _LoadingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return const SizedBox(
       height: 20,
-      child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
+      child: Center(
+        child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
     );
   }
 }
@@ -335,6 +486,7 @@ class _LoadingRow extends StatelessWidget {
 class _StatusRowWidget extends StatelessWidget {
   final String label;
   final String value;
+
   const _StatusRowWidget({required this.label, required this.value});
 
   @override
@@ -345,7 +497,8 @@ class _StatusRowWidget extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(color: Colors.grey)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+          Text(value,
+              style: const TextStyle(fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -354,6 +507,7 @@ class _StatusRowWidget extends StatelessWidget {
 
 class _AccuracyDotWidget extends StatelessWidget {
   final GpsPosition? pos;
+
   const _AccuracyDotWidget({required this.pos});
 
   @override
@@ -380,17 +534,14 @@ class _AccuracyDotWidget extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
+        Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 6),
-        Text(label, style: TextStyle(color: color, fontSize: 12)),
+        const SizedBox(width: 4),
+        Text(label,
+            style: TextStyle(fontSize: 12, color: color)),
       ],
     );
   }
@@ -399,19 +550,37 @@ class _AccuracyDotWidget extends StatelessWidget {
 class _ChipWidget extends StatelessWidget {
   final String label;
   final String value;
+
   const _ChipWidget({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(
-        '$label: $value',
-        style: const TextStyle(fontSize: 13),
+      child: RichText(
+        text: TextSpan(
+          style: DefaultTextStyle.of(context).style,
+          children: [
+            TextSpan(
+              text: '$label  ',
+              style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withAlpha(128)),
+            ),
+            TextSpan(
+              text: value,
+              style: const TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
       ),
     );
   }
