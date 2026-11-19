@@ -22,7 +22,7 @@ import CoreBluetooth
     )
     let eventChannel = FlutterEventChannel(
       name: "com.jetourgps/ble/events",
-      binaryMessenger: engineBridge.binaryMessenger
+      binaryMessenger: engineBridge.applicationRegistrar.messenger()
     )
     let peripheral = JetourBlePeripheral()
     jetourBlePeripheral = peripheral
@@ -146,6 +146,11 @@ private final class JetourBlePeripheral: NSObject, CBPeripheralManagerDelegate, 
         details: peripheral.state.rawValue
       ))
     }
+    if peripheral.state != .poweredOn {
+      isAdvertising = false
+      subscribedCentralIDs.removeAll()
+      pendingChunks.removeAll()
+    }
     emitState()
   }
 
@@ -160,13 +165,24 @@ private final class JetourBlePeripheral: NSObject, CBPeripheralManagerDelegate, 
       CBAdvertisementDataServiceUUIDsKey: [serviceUUID],
       CBAdvertisementDataLocalNameKey: deviceName
     ])
-    // CoreBluetooth does not provide a didStartAdvertising callback.
-    // Successful service registration and startAdvertising request are the
-    // available confirmation; actual discovery is reflected by subscriptions.
-    isAdvertising = true
-    let result = pendingStartResult
-    pendingStartResult = nil
-    result?(true)
+  }
+
+  func peripheralManagerDidStartAdvertising(_ peripheral: CBPeripheralManager, error: Error?) {
+    if let error {
+      isAdvertising = false
+      let result = pendingStartResult
+      pendingStartResult = nil
+      result?(FlutterError(
+        code: "BLE_ADVERTISING_ERROR",
+        message: error.localizedDescription,
+        details: nil
+      ))
+    } else {
+      isAdvertising = true
+      let result = pendingStartResult
+      pendingStartResult = nil
+      result?(true)
+    }
     emitState()
   }
 
