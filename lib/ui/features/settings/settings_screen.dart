@@ -450,7 +450,7 @@ class _ConnectionSection extends StatelessWidget {
           if (isJetourBle)
             _TextFieldRow(
               key: const ValueKey('jetour-ble-name'),
-              label: 'iPhone BLE Device Name',
+              label: 'Car plate / Bluetooth name',
               value: settings.bleDeviceName,
               onChanged: (v) => notifier.updateSingle(
                   (s) => s.copyWith(bleDeviceName: v.trim())),
@@ -521,7 +521,7 @@ class _NetworkSection extends StatelessWidget {
                       ),
                       if (settings.bleEnabled)
                         _TextFieldRow(
-                          label: 'BLE Device Name',
+                          label: 'Car plate / Bluetooth name',
                           value: settings.bleDeviceName,
                           onChanged: (v) => notifier.updateSingle(
                               (s) => s.copyWith(bleDeviceName: v)),
