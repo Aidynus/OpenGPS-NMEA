@@ -99,7 +99,15 @@ class _MainScreenState extends ConsumerState<MainScreen>
           ),
         ],
       ),
-      body: ListView(
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragEnd: (details) {
+          final velocity = details.primaryVelocity ?? 0;
+          if (velocity > 350 && Navigator.of(context).canPop()) {
+            Navigator.of(context).maybePop();
+          }
+        },
+        child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           if (!settingsReady)
@@ -119,8 +127,17 @@ class _MainScreenState extends ConsumerState<MainScreen>
               socketPort,
               bleEnabled,
             ),
+            const SizedBox(height: 20),
+            const Center(
+              child: Text(
+                'Разработчик: Маратов Айдын',
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ),
+            const SizedBox(height: 8),
           ],
         ],
+      ),
       ),
     );
   }
