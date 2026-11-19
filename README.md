@@ -1,150 +1,33 @@
-Sideloaded build "JetourGPS" — iOS app by Маратов Айдын (based on OpenGPS-NMEA, MIT). Russian/English UI, colourful theme.
+# JetourGPS
 
-# OpenGPS-NMEA
+iPhone application that sends the phone's GPS position (coordinates, speed,
+course) to the Jetour car head unit over **Bluetooth LE** (standard Location and
+Navigation Service, `0x1819`).
 
-Turn your iOS or Android device into a wireless GPS. Broadcast real-time **NMEA** or **TAIP** location data over **TCP**, **UDP**, **WebSocket**, or **BLE** to any compatible navigation software on your network or the internet.
+Author: **Маратов Айдын**. Based on the open source
+[OpenGPS-NMEA](https://github.com/ariqpradipa/OpenGPS-NMEA) (MIT), reduced to a
+single Bluetooth transport.
 
-[![Flutter](https://img.shields.io/badge/Flutter-3.x-blue?logo=flutter)](https://flutter.dev)
-[![Dart](https://img.shields.io/badge/Dart-3.x-blue?logo=dart)](https://dart.dev)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+- Bluetooth LE only; up to **2** devices at once
+- Interface language: system / English / Русский (Settings → General → Language)
+- Dark theme in the style of the Jetour head-unit application
+- Protocol description: [docs/BLE_PROTOCOL.md](docs/BLE_PROTOCOL.md)
 
-## Features
+## Build (iOS, unsigned IPA)
 
-| Category | Details |
-|----------|---------|
-| **Protocols** | NMEA 0183 (11 sentence types), TAIP (PV, AL) |
-| **Connections** | Socket (multi-client), TCP Client, UDP Client, UDP Multicast, UDP Broadcast, TAIP UDP, WebSocket, JetourGPS BLE (iPhone peripheral) |
-| **Networks** | WiFi, Cellular, Hotspot, Bluetooth BLE |
-| **NMEA Messages** | GGA, GLL, GSA, HDG, HDM, HDT, RMC, VTG, ZDA, PASHR, GPTXT |
-| **Background** | Location updates while device sleeps or app is terminated |
-| **Settings** | Accuracy (4 levels), frequency (8 presets), static detection, high-contrast theme, true/magnetic north, password lock, DMS/decimal minutes display |
+GitHub Actions builds it on every push: **Actions → Build iOS (unsigned)** →
+artifact `JetourGPS-unsigned-ipa`. Sign and install it with Sideloadly,
+iloader or AltStore using your own Apple ID.
 
-NMEA sentences supported, all individually togglable:
-
-| Sentence | Description | Required |
-|----------|-------------|----------|
-| `$GPGGA` | Global Positioning System Fix Data | Marine GPS |
-| `$GPGLL` | Geographic Position – Latitude/Longitude | Navigation |
-| `$GPGSA` | DOP and Active Satellites | NASA Clipper GPS Repeater |
-| `$HCHDG` | Heading — Magnetic + Deviation + Variation | Compass hardware |
-| `$GPHDM` | Heading — Magnetic | Compass hardware |
-| `$GPHDT` | Heading — True | Compass hardware |
-| `$GPRMC` | Recommended Minimum Specific GNSS Data | Default message |
-| `$GPVTG` | Velocity and Track over Ground | Navigation |
-| `$GPZDA` | Time & Date | All apps |
-| `$PASHR` | Inertial Attitude Data (non-standard) | MarineGPS |
-| `$GPTXT` | Custom Text / Device ID | Multi-device setups |
-
-## Architecture
-
-```
-lib/
-├── core/                          # Shared utilities
-│   ├── constants/                 # Presets, default values
-│   ├── errors/                    # Exception types
-│   ├── utils/                     # NMEA checksum, coordinate formatting
-│   └── extensions/                # Dart extensions
-├── data/
-│   ├── services/                  # GPS (geolocator), BLE peripheral
-│   ├── repositories/              # Settings (SharedPreferences)
-│   └── providers/                 # Riverpod providers
-├── domain/
-│   ├── models/                    # Freezed immutable models
-│   ├── protocols/                 # NMEA builder, TAIP builder
-│   └── transmission/              # TCP/UDP/WebSocket transmitters
-└── ui/
-    ├── core/theme/                # Low contrast, high contrast, dark
-    └── features/                  # Main screen, Settings screen
-```
-
-**State management:** Riverpod (NotifierProvider, StreamProvider)  
-**Routing:** go_router  
-**Code generation:** freezed, json_serializable
-
-## Getting Started
-
-### Prerequisites
-
-- Flutter 3.x stable (`flutter doctor`)
-- iOS: Xcode 15+, iOS 13+ deployment target
-- Android: Android SDK 31+, minSdk 21
-
-### Setup
+Locally (macOS with Xcode and Flutter):
 
 ```bash
-git clone https://github.com/your-org/OpenGPS-NMEA.git
-cd OpenGPS-NMEA
 flutter pub get
+flutter build ios --release --no-codesign
 ```
 
-### Run
+## Tests
 
 ```bash
-# iOS
-flutter run -d iphone
-
-# Android
-flutter run -d android
+flutter test
 ```
-
-### Build
-
-```bash
-flutter build ios --release
-flutter build apk --release
-```
-
-## Connection Methods
-
-| Mode | Direction | Use Case |
-|------|-----------|---------|
-| **Socket** | Server — listen on port | OpenCPN, Aqua Map, iNavX, QtVlm |
-| **TCP Client** | Push to remote IP:port | Long-distance relay servers |
-| **UDP Client** | Unicast datagrams | Low-latency single target |
-| **UDP Multicast** | Group (224–239.x.x.x) | Multiple receivers on same network |
-| **UDP Broadcast** | Subnet broadcast (.255) | All hosts on local network |
-| **TAIP UDP** | TAIP protocol server | Fleet tracking, vehicle telemetry |
-| **WebSocket** | WS server connection | Web apps, real-time dashboards |
-
-## Legacy BLE Location and Navigation Service
-
-The existing Bluetooth SIG Location and Navigation Service (UUID `0x1819`) remains available as a separate binary GATT profile:
-
-```
-Service: 0x1819 (Location and Navigation)
-├── 0x2A6A — LN Feature [Read]
-├── 0x2A67 — Location and Speed [Notify]
-└── 0x2A68 — Navigation [Notify]
-```
-
-| Characteristic | Supported Fields |
-|---------------|-----------------|
-| LN Feature | Instantaneous Speed, Location, Elevation, Heading, UTC Time |
-| Location & Speed | Speed (0.01 m/s), Lat/Lon (1e-7°), Elevation (0.01 m), Heading (0.01°), UTC timestamp |
-| Navigation | Bearing, Heading |
-
-**Compatible with:** SeaNav, QTH.app, LightBlue, BLE Scanner — any app implementing the BLE LNS GATT profile.
-
-## JetourGPS BLE mode (iPhone → Jetour head unit)
-
-A separate custom BLE GATT profile sends NMEA 0183 text from the iPhone to the Android 9 head unit. It does not replace the existing SIG LNS profile or any TCP/UDP/WebSocket mode.
-
-- Service UUID: `7F510001-1B15-4D5A-9A4E-7E5D0F9A1000`
-- Notify characteristic: `7F510002-1B15-4D5A-9A4E-7E5D0F9A1000`
-- Payload: UTF-8 NMEA RMC + GGA, CRLF terminated, checksum validated by the receiver.
-- Android 9 head-unit implementation requirements: `docs/ANDROID9_JETOURGPS_CLIENT.md`.
-- Protocol contract: `docs/JETOURGPS_BLE_PROTOCOL.md`.
-
-The iOS app uses CoreBluetooth Peripheral mode. BLE data reception alone does not create a hardware GNSS provider on Android; the system location integration is a separate device-specific task.
-
-## Testing
-
-```bash
-flutter test                    # All unit + widget tests (167 tests)
-flutter test test/core/         # Utility tests only
-flutter test integration_test/  # E2E integration tests
-```
-
-## License
-
-MIT — see [LICENSE](LICENSE) for details.

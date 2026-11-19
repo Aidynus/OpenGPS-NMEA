@@ -143,6 +143,19 @@ const Map<String, String> _ru = {
   'Alt': 'Высота',
   'Course': 'Курс',
   'Speed': 'Скорость',
+  'Connected': 'Подключено',
+  'Waiting for connection…': 'Ожидание подключения…',
+  'Connected devices': 'Подключённые устройства',
+  'GPS to the car via Bluetooth LE': 'GPS в автомобиль по Bluetooth LE',
+  'Author: Маратов Айдын': 'Автор: Маратов Айдын',
+  'Back': 'Назад',
+  // Bluetooth errors
+  'Bluetooth is turned off or unavailable. Turn on Bluetooth and allow access in iPhone Settings.':
+      'Bluetooth выключен или недоступен. Включите Bluetooth и разрешите доступ в Настройках iPhone.',
+  'Bluetooth transmission is supported on iPhone only.':
+      'Передача по Bluetooth работает только на iPhone.',
+  'Could not start Bluetooth transmission.':
+      'Не удалось запустить передачу по Bluetooth.',
   // Units and compass points
   'm': 'м',
   'kn': 'уз',
@@ -310,6 +323,7 @@ final List<(RegExp, String)> _rules = [
     'Службы геолокации недоступны'
   ),
   (RegExp(r'Network is unavailable'), 'Сеть недоступна'),
+  (RegExp(r'^Bluetooth error: '), 'Ошибка Bluetooth: '),
   (RegExp(r'Bluetooth is unavailable'), 'Bluetooth недоступен'),
   (
     RegExp(r'"(.*?)" is not a valid IP address\.?'),

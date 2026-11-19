@@ -4,7 +4,7 @@ import CoreBluetooth
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
-  private var jetourBlePeripheral: JetourBlePeripheral?
+  private var blePeripheral: JetourBlePeripheral?
 
   override func application(
     _ application: UIApplication,
@@ -25,7 +25,7 @@ import CoreBluetooth
       binaryMessenger: engineBridge.applicationRegistrar.messenger()
     )
     let peripheral = JetourBlePeripheral()
-    jetourBlePeripheral = peripheral
+    blePeripheral = peripheral
     methodChannel.setMethodCallHandler { [weak peripheral] call, result in
       peripheral?.handle(call, result: result)
     }
@@ -33,17 +33,32 @@ import CoreBluetooth
   }
 }
 
+/// iPhone as a BLE peripheral: standard Location and Navigation Service (0x1819).
+///  - 0x2A67 Location and Speed  (notify)  - position packets
+///  - 0x2A6A LN Feature          (read)    - what the packets contain
+/// At most `maxClients` central devices receive data; further ones are ignored
+/// and, while the limit is reached, the iPhone stops advertising.
 private final class JetourBlePeripheral: NSObject, CBPeripheralManagerDelegate, FlutterStreamHandler {
-  private let serviceUUID = CBUUID(string: "7F510001-1B15-4D5A-9A4E-7E5D0F9A1000")
-  private let txUUID = CBUUID(string: "7F510002-1B15-4D5A-9A4E-7E5D0F9A1000")
+  private let lnServiceUUID = CBUUID(string: "1819")
+  private let locationSpeedUUID = CBUUID(string: "2A67")
+  private let lnFeatureUUID = CBUUID(string: "2A6A")
+
   private var manager: CBPeripheralManager!
-  private var txCharacteristic: CBMutableCharacteristic?
+  private var locationCharacteristic: CBMutableCharacteristic?
   private var eventSink: FlutterEventSink?
   private var pendingStartResult: FlutterResult?
+
   private var deviceName = "JetourGPS"
-  private var subscribedCentralIDs = Set<UUID>()
-  private var pendingChunks: [Data] = []
-  private var isAdvertising = false
+  private var maxClients = 2
+  private var wantAdvertising = false
+  private var advertising = false
+
+  /// Centrals that receive position data (at most `maxClients`).
+  private var activeCentrals: [CBCentral] = []
+  /// Centrals subscribed beyond the limit: they get nothing until a slot frees up.
+  private var waitingCentrals: [CBCentral] = []
+  /// Latest packet that could not be delivered yet (BLE queue was full).
+  private var pendingPacket: Data?
 
   override init() {
     super.init()
@@ -54,60 +69,59 @@ private final class JetourBlePeripheral: NSObject, CBPeripheralManagerDelegate, 
     )
   }
 
+  // MARK: Flutter method channel
+
   func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "start":
       let args = call.arguments as? [String: Any]
-      let requestedName = (args?["deviceName"] as? String)?
-        .trimmingCharacters(in: .whitespacesAndNewlines)
-      if let requestedName, !requestedName.isEmpty {
-        deviceName = String(requestedName.prefix(24))
+      if let name = (args?["deviceName"] as? String)?
+        .trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
+        deviceName = String(name.prefix(24))
       }
-      guard manager.state == .poweredOn else {
-        if manager.state == .unknown || manager.state == .resetting {
-          pendingStartResult = result
-        } else {
-          result(FlutterError(
-            code: "BLE_UNAVAILABLE",
-            message: "Bluetooth is not powered on or is unavailable.",
-            details: manager.state.rawValue
-          ))
-        }
-        return
+      if let limit = (args?["maxClients"] as? NSNumber)?.intValue, limit >= 1 {
+        maxClients = min(limit, 2)
       }
-      beginAdvertising(result: result)
+      wantAdvertising = true
+      switch manager.state {
+      case .poweredOn:
+        beginAdvertising(result: result)
+      case .unknown, .resetting:
+        pendingStartResult = result
+      default:
+        wantAdvertising = false
+        result(FlutterError(
+          code: "BLE_UNAVAILABLE",
+          message: "Bluetooth is not powered on or is unavailable.",
+          details: manager.state.rawValue
+        ))
+      }
 
     case "stop":
+      wantAdvertising = false
       pendingStartResult = nil
+      resetConnections()
       manager.stopAdvertising()
       manager.removeAllServices()
-      txCharacteristic = nil
-      pendingChunks.removeAll()
-      subscribedCentralIDs.removeAll()
-      isAdvertising = false
+      locationCharacteristic = nil
+      advertising = false
       emitState()
       result(true)
 
     case "send":
-      guard isAdvertising, !subscribedCentralIDs.isEmpty else {
+      guard let args = call.arguments as? [String: Any],
+            let typed = args["data"] as? FlutterStandardTypedData else {
+        result(FlutterError(code: "INVALID_DATA", message: "Expected a binary packet.", details: nil))
+        return
+      }
+      guard !activeCentrals.isEmpty else {
         result(false)
         return
       }
-      guard let args = call.arguments as? [String: Any],
-            let text = args["data"] as? String,
-            let data = text.data(using: .utf8) else {
-        result(FlutterError(code: "INVALID_DATA", message: "Expected UTF-8 NMEA text.", details: nil))
-        return
+      if !deliver(typed.data) {
+        // Keep only the newest packet: stale coordinates are useless.
+        pendingPacket = typed.data
       }
-      // A conservative 20-byte payload works with the default ATT MTU.
-      // NMEA line boundaries are deliberately not tied to notification boundaries.
-      var offset = 0
-      while offset < data.count {
-        let end = min(offset + 20, data.count)
-        pendingChunks.append(data.subdata(in: offset..<end))
-        offset = end
-      }
-      drainNotifications()
       result(true)
 
     default:
@@ -115,113 +129,168 @@ private final class JetourBlePeripheral: NSObject, CBPeripheralManagerDelegate, 
     }
   }
 
-  private func beginAdvertising(result: @escaping FlutterResult) {
+  // MARK: Advertising
+
+  private func beginAdvertising(result: FlutterResult?) {
     pendingStartResult = result
     manager.stopAdvertising()
     manager.removeAllServices()
-    subscribedCentralIDs.removeAll()
-    pendingChunks.removeAll()
-    isAdvertising = false
+    resetConnections()
+    advertising = false
 
-    let characteristic = CBMutableCharacteristic(
-      type: txUUID,
+    let location = CBMutableCharacteristic(
+      type: locationSpeedUUID,
       properties: [.notify],
       value: nil,
       permissions: []
     )
-    let service = CBMutableService(type: serviceUUID, primary: true)
-    service.characteristics = [characteristic]
-    txCharacteristic = characteristic
+    // LN Feature (uint32): bit0 speed, bit2 location, bit4 heading.
+    let feature = CBMutableCharacteristic(
+      type: lnFeatureUUID,
+      properties: [.read],
+      value: Data([0x15, 0x00, 0x00, 0x00]),
+      permissions: [.readable]
+    )
+    let service = CBMutableService(type: lnServiceUUID, primary: true)
+    service.characteristics = [location, feature]
+    locationCharacteristic = location
     manager.add(service)
   }
 
-  func peripheralManagerDidUpdateState(_ peripheral: CBPeripheralManager) {
-    if peripheral.state == .poweredOn, let result = pendingStartResult {
-      beginAdvertising(result: result)
-    } else if peripheral.state != .poweredOn, let result = pendingStartResult {
-      pendingStartResult = nil
-      result(FlutterError(
-        code: "BLE_UNAVAILABLE",
-        message: "Bluetooth became unavailable.",
-        details: peripheral.state.rawValue
-      ))
+  private func startAdvertisingNow() {
+    guard wantAdvertising, manager.state == .poweredOn, !manager.isAdvertising else { return }
+    manager.startAdvertising([
+      CBAdvertisementDataServiceUUIDsKey: [lnServiceUUID],
+      CBAdvertisementDataLocalNameKey: deviceName
+    ])
+  }
+
+  /// While two devices are connected the iPhone stops advertising, so a third
+  /// device cannot find it; advertising resumes when a slot frees up.
+  private func updateAdvertisingForCapacity() {
+    guard wantAdvertising, locationCharacteristic != nil else { return }
+    if activeCentrals.count >= maxClients {
+      if manager.isAdvertising {
+        manager.stopAdvertising()
+      }
+      advertising = false
+    } else if !manager.isAdvertising {
+      startAdvertisingNow()
     }
-    if peripheral.state != .poweredOn {
-      isAdvertising = false
-      subscribedCentralIDs.removeAll()
-      pendingChunks.removeAll()
+  }
+
+  private func resetConnections() {
+    activeCentrals.removeAll()
+    waitingCentrals.removeAll()
+    pendingPacket = nil
+  }
+
+  // MARK: Data
+
+  @discardableResult
+  private func deliver(_ data: Data) -> Bool {
+    guard let characteristic = locationCharacteristic, !activeCentrals.isEmpty else { return false }
+    return manager.updateValue(data, for: characteristic, onSubscribedCentrals: activeCentrals)
+  }
+
+  // MARK: CBPeripheralManagerDelegate
+
+  func peripheralManagerDidUpdateState(_ peripheral: CBPeripheralManager) {
+    switch peripheral.state {
+    case .poweredOn:
+      if wantAdvertising && locationCharacteristic == nil {
+        // First start (waiting for the radio) or Bluetooth was switched back on.
+        beginAdvertising(result: pendingStartResult)
+      }
+    case .unknown, .resetting:
+      // Transitional states: keep waiting.
+      break
+    default:
+      if let result = pendingStartResult {
+        pendingStartResult = nil
+        wantAdvertising = false
+        result(FlutterError(
+          code: "BLE_UNAVAILABLE",
+          message: "Bluetooth became unavailable.",
+          details: peripheral.state.rawValue
+        ))
+      }
+      advertising = false
+      locationCharacteristic = nil
+      resetConnections()
     }
     emitState()
   }
 
   func peripheralManager(_ peripheral: CBPeripheralManager, didAdd service: CBService, error: Error?) {
-    if let error {
+    if let error = error {
       let result = pendingStartResult
       pendingStartResult = nil
+      wantAdvertising = false
       result?(FlutterError(code: "BLE_SERVICE_ERROR", message: error.localizedDescription, details: nil))
       return
     }
-    peripheral.startAdvertising([
-      CBAdvertisementDataServiceUUIDsKey: [serviceUUID],
-      CBAdvertisementDataLocalNameKey: deviceName
-    ])
+    startAdvertisingNow()
   }
 
   func peripheralManagerDidStartAdvertising(_ peripheral: CBPeripheralManager, error: Error?) {
-    if let error {
-      isAdvertising = false
-      let result = pendingStartResult
-      pendingStartResult = nil
-      result?(FlutterError(
-        code: "BLE_ADVERTISING_ERROR",
-        message: error.localizedDescription,
-        details: nil
-      ))
+    let result = pendingStartResult
+    pendingStartResult = nil
+    if let error = error {
+      advertising = false
+      wantAdvertising = false
+      result?(FlutterError(code: "BLE_ADVERTISING_ERROR", message: error.localizedDescription, details: nil))
     } else {
-      isAdvertising = true
-      let result = pendingStartResult
-      pendingStartResult = nil
+      advertising = true
       result?(true)
     }
     emitState()
   }
 
-  func peripheralManager(_ peripheral: CBPeripheralManager, didSubscribeTo characteristic: CBCharacteristic, by central: CBCentral) {
-    subscribedCentralIDs.insert(central.identifier)
+  func peripheralManager(_ peripheral: CBPeripheralManager, central: CBCentral, didSubscribeTo characteristic: CBCharacteristic) {
+    let id = central.identifier
+    if activeCentrals.contains(where: { $0.identifier == id }) ||
+        waitingCentrals.contains(where: { $0.identifier == id }) {
+      return
+    }
+    if activeCentrals.count < maxClients {
+      activeCentrals.append(central)
+    } else {
+      waitingCentrals.append(central)
+    }
+    updateAdvertisingForCapacity()
     emitState()
   }
 
-  func peripheralManager(_ peripheral: CBPeripheralManager, didUnsubscribeFrom characteristic: CBCharacteristic, by central: CBCentral) {
-    subscribedCentralIDs.remove(central.identifier)
-    if subscribedCentralIDs.isEmpty {
-      pendingChunks.removeAll()
+  func peripheralManager(_ peripheral: CBPeripheralManager, central: CBCentral, didUnsubscribeFrom characteristic: CBCharacteristic) {
+    let id = central.identifier
+    let wasActive = activeCentrals.contains(where: { $0.identifier == id })
+    activeCentrals.removeAll(where: { $0.identifier == id })
+    waitingCentrals.removeAll(where: { $0.identifier == id })
+    if wasActive, activeCentrals.count < maxClients, !waitingCentrals.isEmpty {
+      activeCentrals.append(waitingCentrals.removeFirst())
     }
+    if activeCentrals.isEmpty {
+      pendingPacket = nil
+    }
+    updateAdvertisingForCapacity()
     emitState()
   }
 
   func peripheralManagerIsReady(toUpdateSubscribers peripheral: CBPeripheralManager) {
-    drainNotifications()
+    if let packet = pendingPacket, deliver(packet) {
+      pendingPacket = nil
+    }
   }
 
-  private func drainNotifications() {
-    guard let characteristic = txCharacteristic, !subscribedCentralIDs.isEmpty else {
-      pendingChunks.removeAll()
-      return
-    }
-    while let chunk = pendingChunks.first {
-      if manager.updateValue(chunk, for: characteristic, onSubscribedCentrals: nil) {
-        pendingChunks.removeFirst()
-      } else {
-        break
-      }
-    }
-  }
+  // MARK: FlutterStreamHandler
 
   private func emitState() {
     eventSink?([
-      "advertising": isAdvertising,
-      "connected": !subscribedCentralIDs.isEmpty,
-      "clientCount": subscribedCentralIDs.count
+      "advertising": advertising,
+      "connected": !activeCentrals.isEmpty,
+      "clientCount": activeCentrals.count,
+      "maxClients": maxClients
     ])
   }
 

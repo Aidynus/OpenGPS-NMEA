@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/providers/location_provider.dart';
+import 'core/navigation.dart';
 import 'core/theme/app_theme.dart';
+import 'features/lock/lock_screen.dart';
 import 'features/main/main_screen.dart';
 import 'features/settings/settings_screen.dart';
-import 'features/log/sentence_log_screen.dart';
-import 'features/profiles/connection_profiles_screen.dart';
-import 'features/lock/lock_screen.dart';
 
 final _routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -19,6 +17,7 @@ final _routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _fadePage(
           key: state.pageKey,
           child: const MainScreen(),
+          isHome: true,
         ),
       ),
       GoRoute(
@@ -26,20 +25,6 @@ final _routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _fadePage(
           key: state.pageKey,
           child: const SettingsScreen(),
-        ),
-      ),
-      GoRoute(
-        path: '/log',
-        pageBuilder: (context, state) => _fadePage(
-          key: state.pageKey,
-          child: const SentenceLogScreen(),
-        ),
-      ),
-      GoRoute(
-        path: '/profiles',
-        pageBuilder: (context, state) => _fadePage(
-          key: state.pageKey,
-          child: const ConnectionProfilesScreen(),
         ),
       ),
       GoRoute(
@@ -56,10 +41,12 @@ final _routerProvider = Provider<GoRouter>((ref) {
 CustomTransitionPage<void> _fadePage({
   required LocalKey key,
   required Widget child,
+  bool isHome = false,
 }) {
   return CustomTransitionPage<void>(
     key: key,
-    child: _SwipeBackGesture(child: child),
+    // Every screen except home can be closed with a left-to-right swipe.
+    child: isHome ? child : _SwipeBackGesture(child: child),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
       return FadeTransition(
         opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
@@ -77,24 +64,19 @@ class OpenGpsNmeaApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(_routerProvider);
-    final settings = ref.watch(appSettingsProvider);
-    final isHighContrast = settings.highContrast;
 
     return MaterialApp.router(
       title: 'JetourGPS',
       debugShowCheckedModeBanner: false,
-      // Light theme: low contrast or high contrast
-      theme: isHighContrast ? AppTheme.highContrast : AppTheme.lowContrast,
-      // Dark theme: dark high contrast or standard dark
-      darkTheme: isHighContrast ? AppTheme.darkHighContrast : AppTheme.dark,
-      themeMode: ThemeMode.system,
+      theme: AppTheme.dark,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.dark,
       routerConfig: router,
     );
   }
 }
 
-
-/// Adds a right-swipe back gesture to every routed page.
+/// Left-to-right swipe returns to the previous (or the home) screen.
 class _SwipeBackGesture extends StatelessWidget {
   final Widget child;
 
@@ -106,8 +88,8 @@ class _SwipeBackGesture extends StatelessWidget {
       behavior: HitTestBehavior.translucent,
       onHorizontalDragEnd: (details) {
         final velocity = details.primaryVelocity ?? 0;
-        if (velocity > 350 && Navigator.of(context).canPop()) {
-          Navigator.of(context).maybePop();
+        if (velocity > 350) {
+          goBackOrHome(context);
         }
       },
       child: child,

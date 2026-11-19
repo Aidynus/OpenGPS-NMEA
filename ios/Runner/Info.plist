@@ -52,13 +52,13 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>JetourGPS needs your location to transmit GPS data to navigation software.</string>
+	<string>JetourGPS needs your location to send it to the car head unit.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>OpenGPS-NMEA needs background location access to continuously transmit GPS data even when the app is in the background or device is asleep.</string>
+	<string>JetourGPS needs background location access to keep sending your position to the car head unit while the screen is off.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>JetourGPS uses Bluetooth to share your GPS location with nearby devices via BLE.</string>
+	<string>JetourGPS uses Bluetooth to send your GPS position to the car head unit.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>JetourGPS acts as a Bluetooth peripheral to broadcast GPS data to connected navigation software.</string>
+	<string>JetourGPS acts as a Bluetooth device that sends your GPS position to the car head unit.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

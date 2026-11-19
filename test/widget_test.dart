@@ -10,6 +10,6 @@ void main() {
         child: OpenGpsNmeaApp(),
       ),
     );
-    expect(find.text('OpenGPS-NMEA'), findsOneWidget);
+    expect(find.text('JetourGPS'), findsOneWidget);
   });
 }

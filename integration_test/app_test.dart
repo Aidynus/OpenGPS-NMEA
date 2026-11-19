@@ -12,7 +12,7 @@ void main() {
       app.main();
       await tester.pumpAndSettle(const Duration(seconds: 2));
 
-      expect(find.text('OpenGPS-NMEA'), findsOneWidget);
+      expect(find.text('JetourGPS'), findsOneWidget);
     });
 
     testWidgets('settings button navigates to settings screen', (tester) async {

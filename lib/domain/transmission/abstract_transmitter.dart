@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:opengps_nmea/domain/models/app_settings.dart';
+import 'package:opengps_nmea/domain/models/gps_position.dart';
 
 /// Transmission lifecycle state.
 enum TransmitterStatus {
@@ -32,15 +33,9 @@ abstract class BaseTransmitter {
 
   Future<void> start(AppSettings settings);
   Future<void> stop();
-  Future<void> send(String data);
-
-  /// Sends multiple messages. Subclasses may override to batch more
-  /// efficiently (e.g. TCP can flush once after all writes).
-  Future<void> sendMultiple(List<String> dataList) async {
-    for (final data in dataList) {
-      await send(data);
-    }
-  }
+  /// Sends one position. Returns true when it was delivered to at least one
+  /// connected device.
+  Future<bool> sendPosition(GpsPosition pos);
 
   void dispose() {
     _clientCountController.close();

@@ -31,9 +31,6 @@ dependencies:
   # Persistent storage
   shared_preferences: ^2.3.4
 
-  # Network info (WiFi IP, Cellular IP)
-  network_info_plus: ^6.1.2
-
   # Immutable models
   freezed_annotation: ^2.4.4
   json_annotation: ^4.9.0
@@ -41,11 +38,6 @@ dependencies:
 
 
 
-  # WebSocket support
-  web_socket_channel: ^3.0.2
-
-  # Share / copy NMEA output
-  share_plus: ^10.0.3
 
 
 

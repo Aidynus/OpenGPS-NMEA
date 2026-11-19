@@ -2,13 +2,10 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:network_info_plus/network_info_plus.dart' as net_info;
 
 import '../../core/constants/app_constants.dart';
 import '../../domain/models/app_settings.dart';
-import '../../domain/models/connection_profile.dart';
 import '../../domain/models/gps_position.dart';
-import '../../domain/models/network_info.dart';
 import '../repositories/settings_repository.dart';
 import '../services/location_service.dart';
 
@@ -158,49 +155,6 @@ final settingsReadyProvider = Provider<bool>((ref) {
   return ref.watch(settingsRepositoryProvider).hasValue;
 });
 
-// ── Connection profiles ───────────────────────────────────────────────────────
-
-class ConnectionProfilesNotifier
-    extends Notifier<List<ConnectionProfile>> {
-  @override
-  List<ConnectionProfile> build() {
-    final repoAsync = ref.watch(settingsRepositoryProvider);
-    return repoAsync.when(
-      data: (repo) => repo.connectionProfiles,
-      loading: () => [],
-      error: (_, __) => [],
-    );
-  }
-
-  Future<void> saveProfile(ConnectionProfile profile) async {
-    final existing = List<ConnectionProfile>.from(state);
-    final idx = existing.indexWhere((p) => p.id == profile.id);
-    if (idx >= 0) {
-      existing[idx] = profile;
-    } else {
-      existing.add(profile);
-    }
-    state = existing;
-    await _persist();
-  }
-
-  Future<void> deleteProfile(String id) async {
-    state = state.where((p) => p.id != id).toList();
-    await _persist();
-  }
-
-  Future<void> _persist() async {
-    final repo = ref.read(settingsRepositoryProvider).valueOrNull;
-    if (repo == null) return;
-    await repo.setConnectionProfiles(state);
-  }
-}
-
-final connectionProfilesProvider =
-    NotifierProvider<ConnectionProfilesNotifier, List<ConnectionProfile>>(
-  ConnectionProfilesNotifier.new,
-);
-
 // ── GPS position stream ───────────────────────────────────────────────────────
 
 GpsPosition _positionToGpsPosition(Position p) {
@@ -319,42 +273,3 @@ final _positionTrackerProvider =
 final lastKnownPositionProvider = Provider<GpsPosition?>((ref) {
   return ref.watch(_positionTrackerProvider).current;
 });
-
-// ── Network info ─────────────────────────────────────────────────────────────
-
-final networkInfoProvider = FutureProvider<NetworkInfo>((ref) async {
-  final netInfo = net_info.NetworkInfo();
-
-  final wifiIp = await netInfo.getWifiIP();
-
-  String? hotspotIp;
-  String? hotspotSubnet;
-  bool isHotspot = false;
-
-  if (wifiIp != null) {
-    isHotspot = _isHotspotIp(wifiIp);
-    if (isHotspot) {
-      hotspotIp = wifiIp;
-      final parts = wifiIp.split('.');
-      if (parts.length == 4) {
-        hotspotSubnet = '${parts[0]}.${parts[1]}.${parts[2]}.0/24';
-      }
-    }
-  }
-
-  // Attempt to get cellular IP via getWifiBSSID fallback is not reliable;
-  // left as null until a platform channel is available.
-  return NetworkInfo(
-    wifiIp: isHotspot ? null : wifiIp,
-    cellularIp: null,
-    hotspotIp: hotspotIp,
-    hotspotSubnet: hotspotSubnet,
-    isHotspotActive: isHotspot,
-  );
-});
-
-bool _isHotspotIp(String ip) {
-  return ip.startsWith('192.168.43.') ||
-      ip.startsWith('172.20.') ||
-      ip.startsWith('100.64.');
-}

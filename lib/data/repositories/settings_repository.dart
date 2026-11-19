@@ -172,14 +172,8 @@ class SettingsRepository {
   Future<bool> setBleEnabled(bool value) =>
       _prefs.setBool(SettingsKeys.bleEnabled, value);
 
-  String get bleDeviceName {
-    final savedName = _getString(
-        SettingsKeys.bleDeviceName, DefaultSettings.defaultBleDeviceName);
-    // Migrate the previous built-in name without overwriting custom names.
-    return savedName == 'JetourGPS'
-        ? DefaultSettings.defaultBleDeviceName
-        : savedName;
-  }
+  String get bleDeviceName => _getString(
+      SettingsKeys.bleDeviceName, DefaultSettings.defaultBleDeviceName);
   Future<bool> setBleDeviceName(String value) =>
       _prefs.setString(SettingsKeys.bleDeviceName, value);
 

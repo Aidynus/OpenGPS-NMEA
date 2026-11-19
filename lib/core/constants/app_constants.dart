@@ -98,7 +98,7 @@ abstract class DefaultSettings {
   static const double staticThresholdMeters = 1.5;
 
   // ── BLE ─────────────────────────────────────────────────────────────
-  static const String defaultBleDeviceName = '999AYD01';
+  static const String defaultBleDeviceName = 'JetourGPS';
 
   // ── Display ─────────────────────────────────────────────────────────
   static const int defaultSpeedUnitIndex = SpeedUnitPreset.knots;

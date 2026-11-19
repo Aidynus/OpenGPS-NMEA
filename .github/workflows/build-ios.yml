@@ -3,7 +3,7 @@ name: Build iOS (unsigned)
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: ['**']
 jobs:
   build:
     runs-on: macos-15-intel

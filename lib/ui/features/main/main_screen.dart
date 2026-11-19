@@ -3,15 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../l10n/tr.dart';
-import '../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/coordinate_formatter.dart';
 import '../../../data/providers/location_provider.dart';
 import '../../../data/providers/transmission_provider.dart';
 import '../../../domain/models/gps_position.dart';
-import '../../../domain/models/network_info.dart';
 import '../../../domain/transmission/abstract_transmitter.dart';
+import '../../../domain/transmission/ble_transmitter.dart';
+import '../../../l10n/tr.dart';
+import '../../core/theme/app_theme.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -37,20 +37,24 @@ class _MainScreenState extends ConsumerState<MainScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Verify transmitter is still healthy after returning from background.
+      // Verify the Bluetooth transmitter is still healthy after returning
+      // from the background.
       ref.read(transmissionCoordinatorProvider.notifier).verifyHealth();
+    }
+  }
+
+  void _toggle(bool value) {
+    HapticFeedback.mediumImpact();
+    final notifier = ref.read(transmissionCoordinatorProvider.notifier);
+    if (value) {
+      notifier.start();
+    } else {
+      notifier.stop();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final connectionMethodIndex =
-        ref.watch(appSettingsProvider.select((s) => s.connectionMethodIndex));
-    final socketPort =
-        ref.watch(appSettingsProvider.select((s) => s.socketPort));
-    final bleEnabled =
-        ref.watch(appSettingsProvider.select((s) => s.bleEnabled));
-    final networkInfo = ref.watch(networkInfoProvider);
     ref.watch(languageProvider); // rebuild tooltips on language change
     final txState = ref.watch(transmissionCoordinatorProvider);
     final settingsReady = ref.watch(settingsReadyProvider);
@@ -64,7 +68,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(error),
-            backgroundColor: Theme.of(context).colorScheme.error,
+            backgroundColor: AppColors.danger,
             action: SnackBarAction(
               label: Tr.s('Dismiss'),
               textColor: Colors.white,
@@ -82,11 +86,6 @@ class _MainScreenState extends ConsumerState<MainScreen>
         title: const Text('JetourGPS'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.terminal_outlined),
-            tooltip: Tr.s('Sentence log'),
-            onPressed: () => context.push('/log'),
-          ),
-          IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: Tr.s('Settings'),
             onPressed: () {
@@ -99,237 +98,201 @@ class _MainScreenState extends ConsumerState<MainScreen>
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: Column(
         children: [
-          if (!settingsReady)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else ...[
-            _buildToggleCard(txState.isActive, txState),
-            const SizedBox(height: 16),
-            const _PositionCardWidget(),
-            const SizedBox(height: 16),
-            _buildStatusCard(
-              txState,
-              networkInfo,
-              connectionMethodIndex,
-              socketPort,
-              bleEnabled,
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                if (!settingsReady)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else ...[
+                  _BluetoothCard(state: txState, onToggle: _toggle),
+                  const SizedBox(height: 16),
+                  const _PositionCard(),
+                ],
+              ],
             ),
-            const SizedBox(height: 20),
-            const Center(
-              child: Text(
-                'Разработчик: Маратов Айдын',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
+          ),
+          const _AuthorFooter(),
         ],
       ),
     );
   }
+}
 
-  Widget _buildToggleCard(bool isActive, TransmissionState txState) {
-    final transmitterStatus = txState.transmitterStatus;
-    final statusLabel = switch (transmitterStatus) {
-      TransmitterStatus.idle => 'Off',
-      TransmitterStatus.connecting => 'Connecting…',
-      TransmitterStatus.connected => 'Active',
-      TransmitterStatus.reconnecting => 'Reconnecting…',
-      TransmitterStatus.error => 'Error',
-    };
-    final statusColor = switch (transmitterStatus) {
-      TransmitterStatus.connected => Colors.green,
-      TransmitterStatus.connecting ||
-      TransmitterStatus.reconnecting =>
-        Colors.orange,
-      TransmitterStatus.error => Colors.red,
-      TransmitterStatus.idle => Colors.grey,
-    };
+// ── Author footer ─────────────────────────────────────────────────────────────
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: AnimatedContainer(
-        duration: Durations.medium2,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              statusColor.withAlpha(isActive ? 90 : 30),
-              statusColor.withAlpha(8),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+class _AuthorFooter extends StatelessWidget {
+  const _AuthorFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: Center(
+          child: Text(
+            'Author: Маратов Айдын',
+            style: TextStyle(color: AppColors.textMuted, fontSize: 12),
           ),
         ),
-        child: Padding(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            AnimatedSwitcher(
-              duration: Durations.short4,
-              child: Icon(
-                key: ValueKey(transmitterStatus),
-                isActive ? Icons.power_settings_new : Icons.power_off,
-                color: statusColor,
-                size: 40,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: Durations.short4,
-                child: Text(
-                  key: ValueKey(transmitterStatus),
-                  statusLabel,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: statusColor,
-                  ),
-                ),
-              ),
-            ),
-            Switch(
-              value: isActive,
-              onChanged: (value) {
-                HapticFeedback.mediumImpact();
-                if (value) {
-                  ref
-                      .read(transmissionCoordinatorProvider.notifier)
-                      .start();
-                } else {
-                  ref
-                      .read(transmissionCoordinatorProvider.notifier)
-                      .stop();
-                }
-              },
-            ),
-          ],
-        ),
-      ),
       ),
     );
   }
+}
 
-  Widget _buildStatusCard(
-    TransmissionState txState,
-    AsyncValue<NetworkInfo> networkInfo,
-    int connectionMethodIndex,
-    int socketPort,
-    bool bleEnabled,
-  ) {
-    final lastTx = txState.lastTxTime;
+// ── Bluetooth card ────────────────────────────────────────────────────────────
+
+class _BluetoothCard extends StatelessWidget {
+  final TransmissionState state;
+  final ValueChanged<bool> onToggle;
+
+  const _BluetoothCard({required this.state, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    final String title;
+    final Color color;
+    final IconData icon;
+
+    if (state.transmitterStatus == TransmitterStatus.error) {
+      title = 'Error';
+      color = AppColors.danger;
+      icon = Icons.bluetooth_disabled;
+    } else if (!state.isActive) {
+      title = 'Off';
+      color = AppColors.textMuted;
+      icon = Icons.bluetooth_disabled;
+    } else if (state.clientCount > 0) {
+      title = 'Connected';
+      color = AppColors.success;
+      icon = Icons.bluetooth_connected;
+    } else {
+      title = 'Waiting for connection…';
+      color = AppColors.glow;
+      icon = Icons.bluetooth_searching;
+    }
+
+    final lastTx = state.lastTxTime;
     final lastTxStr = lastTx == null
         ? '—'
         : '${lastTx.hour.toString().padLeft(2, '0')}:'
             '${lastTx.minute.toString().padLeft(2, '0')}:'
             '${lastTx.second.toString().padLeft(2, '0')}';
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Status',
-                style:
-                    TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            const Divider(),
-            _StatusRowWidget(
-                label: 'Tx', value: txState.totalTxCount.toString()),
-            _StatusRowWidget(
-                label: 'Rx', value: txState.totalRxCount.toString()),
-            _StatusRowWidget(
-                label: 'Clients', value: txState.clientCount.toString()),
-            _StatusRowWidget(label: 'Last Tx', value: lastTxStr),
-            const Divider(),
-            networkInfo.when(
-              data: (info) {
-                if (info == null) return const SizedBox.shrink();
-                return Column(
+    return AppPanel(
+      accent: state.isActive ? color : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color.withAlpha(36),
+                  border: Border.all(color: color.withAlpha(150)),
+                ),
+                child: Icon(icon, size: 28, color: color),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (info.wifiIp != null)
-                      _StatusRowWidget(
-                          label: 'WiFi IP', value: info.wifiIp!),
-                    if (info.cellularIp != null)
-                      _StatusRowWidget(
-                          label: 'Cellular IP', value: info.cellularIp!),
-                    if (info.hotspotIp != null)
-                      _StatusRowWidget(
-                          label: 'Hotspot IP', value: info.hotspotIp!),
-                  ],
-                );
-              },
-              loading: () => const _LoadingRow(),
-              error: (_, __) => const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning_amber,
-                        size: 16, color: Colors.orange),
-                    SizedBox(width: 8),
-                    Text('Network info unavailable',
-                        style: TextStyle(
-                            color: Colors.grey, fontSize: 13)),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'GPS to the car via Bluetooth LE',
+                      style: TextStyle(
+                          fontSize: 12, color: AppColors.textMuted),
+                    ),
                   ],
                 ),
               ),
-            ),
-            if (connectionMethodIndex == ConnectionMethodPreset.socket)
-              _StatusRowWidget(
-                  label: 'Port', value: socketPort.toString()),
-            _buildBleStatus(
-              bleEnabled || connectionMethodIndex == ConnectionMethodPreset.jetourBle,
-              connectionMethodIndex == ConnectionMethodPreset.jetourBle,
-              txState.clientCount,
-              txState.isActive,
-            ),
-          ],
-        ),
+              Switch(value: state.isActive, onChanged: onToggle),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(),
+          _InfoRow(
+            label: 'Connected devices',
+            value: '${state.clientCount} / ${BleTransmitter.maxClients}',
+            leading: _DeviceDots(connected: state.clientCount),
+          ),
+          _InfoRow(label: 'Tx', value: state.totalTxCount.toString()),
+          _InfoRow(label: 'Last Tx', value: lastTxStr),
+        ],
       ),
     );
   }
+}
 
-  Widget _buildBleStatus(
-    bool bleEnabled,
-    bool jetourBleActive,
-    int clientCount,
-    bool isActive,
-  ) {
-    if (!bleEnabled) return const SizedBox.shrink();
+/// One dot per allowed device slot (filled = connected).
+class _DeviceDots extends StatelessWidget {
+  final int connected;
 
-    final status = jetourBleActive
-        ? (isActive ? 'Advertising · $clientCount connected' : 'Off')
-        : 'BLE LNS mode';
-    final color = isActive ? Colors.blue : Colors.grey;
+  const _DeviceDots({required this.connected});
 
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < BleTransmitter.maxClients; i++)
+          Container(
+            width: 10,
+            height: 10,
+            margin: const EdgeInsets.only(right: 6),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: i < connected ? AppColors.success : Colors.transparent,
+              border: Border.all(
+                color: i < connected ? AppColors.success : AppColors.stroke,
+                width: 1.5,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final Widget? leading;
+
+  const _InfoRow({required this.label, required this.value, this.leading});
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text('BLE', style: TextStyle(color: Colors.grey)),
+          Text(label, style: const TextStyle(color: AppColors.textMuted)),
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                !isActive
-                    ? Icons.bluetooth_disabled
-                    : clientCount > 0
-                        ? Icons.bluetooth_connected
-                        : Icons.bluetooth_searching,
-                size: 18,
-                color: color,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                status,
-                style: TextStyle(color: color, fontWeight: FontWeight.w500),
-              ),
+              if (leading != null) leading!,
+              Text(value,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
             ],
           ),
         ],
@@ -340,8 +303,8 @@ class _MainScreenState extends ConsumerState<MainScreen>
 
 // ── Position card ─────────────────────────────────────────────────────────────
 
-class _PositionCardWidget extends ConsumerWidget {
-  const _PositionCardWidget();
+class _PositionCard extends ConsumerWidget {
+  const _PositionCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -353,61 +316,59 @@ class _PositionCardWidget extends ConsumerWidget {
     final permissionError = ref.watch(locationPermissionErrorProvider);
     final hasPosition = pos != null && pos.hasFix;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Text('Position',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w600)),
-                const Spacer(),
-                _AccuracyDotWidget(pos: pos),
-              ],
-            ),
-            const Divider(),
-            AnimatedSwitcher(
-              duration: Durations.short4,
-              child: permissionError != null
-                  ? Padding(
-                      key: const ValueKey('permission-error'),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Column(
-                        children: [
-                          const Icon(Icons.warning_amber_rounded,
-                              size: 32, color: Colors.orange),
-                          const SizedBox(height: 8),
-                          Text(
-                            permissionError,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                fontSize: 14, color: Colors.orange),
-                          ),
-                        ],
-                      ),
-                    )
-                  : !hasPosition
-                      ? const Center(
-                          key: ValueKey('no-fix'),
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 24),
-                            child: Text('No Fix',
-                                style: TextStyle(
-                                    fontSize: 18, color: Colors.grey)),
-                          ),
-                        )
-                      : _PositionData(
-                          key: const ValueKey('position-data'),
-                          pos: pos,
-                          displayDecimalMinutes: displayDecimalMinutes,
-                          speedUnitIndex: speedUnitIndex,
+    return AppPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.my_location, size: 18, color: AppColors.glow),
+              const SizedBox(width: 8),
+              const Text('Position',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              _AccuracyDot(pos: pos),
+            ],
+          ),
+          const Divider(height: 24),
+          AnimatedSwitcher(
+            duration: Durations.short4,
+            child: permissionError != null
+                ? Padding(
+                    key: const ValueKey('permission-error'),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded,
+                            size: 32, color: AppColors.warning),
+                        const SizedBox(height: 8),
+                        Text(
+                          permissionError,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              fontSize: 14, color: AppColors.warning),
                         ),
-            ),
-          ],
-        ),
+                      ],
+                    ),
+                  )
+                : !hasPosition
+                    ? const Center(
+                        key: ValueKey('no-fix'),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: Text('No Fix',
+                              style: TextStyle(
+                                  fontSize: 18, color: AppColors.textMuted)),
+                        ),
+                      )
+                    : _PositionData(
+                        key: const ValueKey('position-data'),
+                        pos: pos,
+                        displayDecimalMinutes: displayDecimalMinutes,
+                        speedUnitIndex: speedUnitIndex,
+                      ),
+          ),
+        ],
       ),
     );
   }
@@ -441,6 +402,7 @@ class _PositionData extends StatelessWidget {
             fontFamily: 'monospace',
             fontSize: 16,
             fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
@@ -451,7 +413,8 @@ class _PositionData extends StatelessWidget {
             if (pos.altitude != null)
               _ChipWidget(
                   label: 'Alt',
-                  value: '${pos.altitude!.toStringAsFixed(1)} ${Tr.s('m')}'),
+                  value:
+                      '${pos.altitude!.toStringAsFixed(1)} ${Tr.s('m')}'),
             ...speedWidgets,
             if (pos.heading != null)
               _ChipWidget(
@@ -467,39 +430,20 @@ class _PositionData extends StatelessWidget {
 
   List<Widget> _buildSpeedChips() {
     final speed = pos.speed;
-    if (speed == null) return [];
+    if (speed == null || speed < 0) return [];
 
+    final String value;
     switch (speedUnitIndex) {
-      case SpeedUnitPreset.knots:
-        return [
-          _ChipWidget(
-              label: 'Speed',
-              value: '${(speed * 1.94384).toStringAsFixed(1)} ${Tr.s('kn')}')
-        ];
       case SpeedUnitPreset.kmh:
-        return [
-          _ChipWidget(
-              label: 'Speed',
-              value: '${(speed * 3.6).toStringAsFixed(1)} ${Tr.s('km/h')}')
-        ];
+        value = '${(speed * 3.6).toStringAsFixed(1)} ${Tr.s('km/h')}';
       case SpeedUnitPreset.mph:
-        return [
-          _ChipWidget(
-              label: 'Speed',
-              value: '${(speed * 2.23694).toStringAsFixed(1)} ${Tr.s('mph')}')
-        ];
+        value = '${(speed * 2.23694).toStringAsFixed(1)} ${Tr.s('mph')}';
       case SpeedUnitPreset.ms:
-        return [
-          _ChipWidget(
-              label: 'Speed', value: '${speed.toStringAsFixed(1)} ${Tr.s('m/s')}')
-        ];
+        value = '${speed.toStringAsFixed(1)} ${Tr.s('m/s')}';
       default:
-        return [
-          _ChipWidget(
-              label: 'Speed',
-              value: '${(speed * 1.94384).toStringAsFixed(1)} ${Tr.s('kn')}')
-        ];
+        value = '${(speed * 1.94384).toStringAsFixed(1)} ${Tr.s('kn')}';
     }
+    return [_ChipWidget(label: 'Speed', value: value)];
   }
 
   String _headingToCardinal(double heading) {
@@ -514,68 +458,28 @@ class _PositionData extends StatelessWidget {
 
 // ── Supporting widgets ────────────────────────────────────────────────────────
 
-class _LoadingRow extends StatelessWidget {
-  const _LoadingRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(
-      height: 20,
-      child: Center(
-        child: SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2)),
-      ),
-    );
-  }
-}
-
-class _StatusRowWidget extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _StatusRowWidget({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.grey)),
-          Text(value,
-              style: const TextStyle(fontWeight: FontWeight.w500)),
-        ],
-      ),
-    );
-  }
-}
-
-class _AccuracyDotWidget extends StatelessWidget {
+class _AccuracyDot extends StatelessWidget {
   final GpsPosition? pos;
 
-  const _AccuracyDotWidget({required this.pos});
+  const _AccuracyDot({required this.pos});
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final p = pos;
-    Color color;
-    String label;
+    final Color color;
+    final String label;
 
     if (p == null || !p.hasFix) {
-      color = colorScheme.error;
+      color = AppColors.danger;
       label = 'No fix';
     } else if (p.accuracy != null && p.accuracy! <= 10) {
-      color = colorScheme.primary;
+      color = AppColors.success;
       label = 'Good';
     } else if (p.accuracy != null && p.accuracy! <= 25) {
-      color = colorScheme.tertiary;
+      color = AppColors.warning;
       label = 'Moderate';
     } else {
-      color = colorScheme.secondary;
+      color = AppColors.glow;
       label = 'Low';
     }
 
@@ -587,9 +491,8 @@ class _AccuracyDotWidget extends StatelessWidget {
           height: 10,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 4),
-        Text(label,
-            style: TextStyle(fontSize: 12, color: color)),
+        const SizedBox(width: 6),
+        Text(label, style: TextStyle(fontSize: 12, color: color)),
       ],
     );
   }
@@ -604,10 +507,11 @@ class _ChipWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.stroke),
       ),
       child: RichText(
         text: TextSpan(
@@ -615,17 +519,15 @@ class _ChipWidget extends StatelessWidget {
           children: [
             TextSpan(
               text: '${Tr.s(label)}  ',
-              style: TextStyle(
-                  fontSize: 11,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withAlpha(128)),
+              style: const TextStyle(
+                  fontSize: 11, color: AppColors.textMuted),
             ),
             TextSpan(
               text: value,
               style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w600),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary),
             ),
           ],
         ),
