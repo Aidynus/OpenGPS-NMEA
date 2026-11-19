@@ -13,7 +13,7 @@ Turn your iOS or Android device into a wireless GPS. Broadcast real-time **NMEA*
 | Category | Details |
 |----------|---------|
 | **Protocols** | NMEA 0183 (11 sentence types), TAIP (PV, AL) |
-| **Connections** | Socket (multi-client), TCP Client, UDP Client, UDP Multicast, UDP Broadcast, TAIP UDP, WebSocket |
+| **Connections** | Socket (multi-client), TCP Client, UDP Client, UDP Multicast, UDP Broadcast, TAIP UDP, WebSocket, JetourGPS BLE (iPhone peripheral) |
 | **Networks** | WiFi, Cellular, Hotspot, Bluetooth BLE |
 | **NMEA Messages** | GGA, GLL, GSA, HDG, HDM, HDT, RMC, VTG, ZDA, PASHR, GPTXT |
 | **Background** | Location updates while device sleeps or app is terminated |
@@ -106,9 +106,9 @@ flutter build apk --release
 | **TAIP UDP** | TAIP protocol server | Fleet tracking, vehicle telemetry |
 | **WebSocket** | WS server connection | Web apps, real-time dashboards |
 
-## BLE Implementation
+## Legacy BLE Location and Navigation Service
 
-OpenGPS-NMEA implements the **Bluetooth SIG Location and Navigation Service (UUID `0x1819`)** as a BLE peripheral:
+The existing Bluetooth SIG Location and Navigation Service (UUID `0x1819`) remains available as a separate binary GATT profile:
 
 ```
 Service: 0x1819 (Location and Navigation)
@@ -124,6 +124,18 @@ Service: 0x1819 (Location and Navigation)
 | Navigation | Bearing, Heading |
 
 **Compatible with:** SeaNav, QTH.app, LightBlue, BLE Scanner — any app implementing the BLE LNS GATT profile.
+
+## JetourGPS BLE mode (iPhone → Jetour head unit)
+
+A separate custom BLE GATT profile sends NMEA 0183 text from the iPhone to the Android 9 head unit. It does not replace the existing SIG LNS profile or any TCP/UDP/WebSocket mode.
+
+- Service UUID: `7F510001-1B15-4D5A-9A4E-7E5D0F9A1000`
+- Notify characteristic: `7F510002-1B15-4D5A-9A4E-7E5D0F9A1000`
+- Payload: UTF-8 NMEA RMC + GGA, CRLF terminated, checksum validated by the receiver.
+- Android 9 head-unit implementation requirements: `docs/ANDROID9_JETOURGPS_CLIENT.md`.
+- Protocol contract: `docs/JETOURGPS_BLE_PROTOCOL.md`.
+
+The iOS app uses CoreBluetooth Peripheral mode. BLE data reception alone does not create a hardware GNSS provider on Android; the system location integration is a separate device-specific task.
 
 ## Testing
 
