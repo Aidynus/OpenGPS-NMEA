@@ -15,7 +15,9 @@ class JetourNmeaBuilder {
     final latitude = nmeaLatToField(position.latitude);
     final longitude = nmeaLonToField(position.longitude);
     final altitude = position.altitude?.toStringAsFixed(1) ?? '';
-    final speed = knotsToNmeaSpeed((position.speed ?? 0.0).clamp(0.0, 1000.0).toDouble());
+    final speed = position.speed == null
+        ? ''
+        : knotsToNmeaSpeed(position.speed!.clamp(0.0, 1000.0).toDouble());
     final course = position.heading == null
         ? ''
         : position.heading!.clamp(0, 359.999).toStringAsFixed(1);
