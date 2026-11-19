@@ -385,6 +385,7 @@ class _ConnectionSection extends StatelessWidget {
     final isUdpMulticast = m == ConnectionMethodPreset.udpMulticast;
     final isTaipUdp = m == ConnectionMethodPreset.taipUdp;
     final isWebSocket = m == ConnectionMethodPreset.webSocket;
+    final isJetourBle = m == ConnectionMethodPreset.jetourBle;
     final needsTarget = isTcpClient || isUdpClient || isTaipUdp;
 
     return Card(
@@ -400,6 +401,7 @@ class _ConnectionSection extends StatelessWidget {
             (ConnectionMethodPreset.udpBroadcast, 'UDP Broadcast'),
             (ConnectionMethodPreset.taipUdp, 'TAIP UDP'),
             (ConnectionMethodPreset.webSocket, 'WebSocket'),
+            (ConnectionMethodPreset.jetourBle, 'JetourGPS BLE (iPhone → Car)'),
           ])
             _RadioRow<int>(
               label: entry.$2,
@@ -444,6 +446,14 @@ class _ConnectionSection extends StatelessWidget {
               validator: validateMulticastAddress,
               onChanged: (v) => notifier.updateSingle(
                   (s) => s.copyWith(multicastGroupAddress: v)),
+            ),
+          if (isJetourBle)
+            _TextFieldRow(
+              key: const ValueKey('jetour-ble-name'),
+              label: 'iPhone BLE Device Name',
+              value: settings.bleDeviceName,
+              onChanged: (v) => notifier.updateSingle(
+                  (s) => s.copyWith(bleDeviceName: v.trim())),
             ),
           if (isWebSocket) ...[
             _ValidatedTextFieldRow(
