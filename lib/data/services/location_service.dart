@@ -82,6 +82,7 @@ class LocationService {
   Stream<Position> getPositionStream({
     int accuracyPreset = GpsAccuracyPreset.best,
     int? distanceFilterOverride,
+    bool allowBackgroundLocationUpdates = true,
   }) {
     _accuracyPreset = accuracyPreset;
     _distanceFilter =
@@ -89,10 +90,22 @@ class LocationService {
 
     _disposeStream();
 
-    final locationSettings = LocationSettings(
-      accuracy: accuracyFromPreset(_accuracyPreset),
-      distanceFilter: _distanceFilter,
-    );
+    final LocationSettings locationSettings =
+        defaultTargetPlatform == TargetPlatform.iOS
+            ? AppleSettings(
+                accuracy: accuracyFromPreset(_accuracyPreset),
+                distanceFilter: _distanceFilter,
+                activityType: ActivityType.automotiveNavigation,
+                allowBackgroundLocationUpdates:
+                    allowBackgroundLocationUpdates,
+                pauseLocationUpdatesAutomatically: false,
+                showBackgroundLocationIndicator:
+                    allowBackgroundLocationUpdates,
+              )
+            : LocationSettings(
+                accuracy: accuracyFromPreset(_accuracyPreset),
+                distanceFilter: _distanceFilter,
+              );
 
     _positionStream = _geolocator.getPositionStream(
       locationSettings: locationSettings,
