@@ -52,13 +52,13 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>OpenGPS-NMEA needs your location to transmit GPS data to navigation software.</string>
+	<string>JetourGPS needs your location to transmit GPS data to navigation software.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>OpenGPS-NMEA needs background location access to continuously transmit GPS data even when the app is in the background or device is asleep.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>OpenGPS-NMEA uses Bluetooth to share your GPS location with nearby devices via BLE.</string>
+	<string>JetourGPS uses Bluetooth to share your GPS location with nearby devices via BLE.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>OpenGPS-NMEA acts as a Bluetooth peripheral to broadcast GPS data to connected navigation software.</string>
+	<string>JetourGPS acts as a Bluetooth peripheral to broadcast GPS data to connected navigation software.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
