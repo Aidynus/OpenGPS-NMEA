@@ -59,7 +59,7 @@ CustomTransitionPage<void> _fadePage({
 }) {
   return CustomTransitionPage<void>(
     key: key,
-    child: child,
+    child: _SwipeBackGesture(child: child),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
       return FadeTransition(
         opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
@@ -89,6 +89,28 @@ class OpenGpsNmeaApp extends ConsumerWidget {
       darkTheme: isHighContrast ? AppTheme.darkHighContrast : AppTheme.dark,
       themeMode: ThemeMode.system,
       routerConfig: router,
+    );
+  }
+}
+
+
+/// Adds a right-swipe back gesture to every routed page.
+class _SwipeBackGesture extends StatelessWidget {
+  final Widget child;
+
+  const _SwipeBackGesture({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragEnd: (details) {
+        final velocity = details.primaryVelocity ?? 0;
+        if (velocity > 350 && Navigator.of(context).canPop()) {
+          Navigator.of(context).maybePop();
+        }
+      },
+      child: child,
     );
   }
 }
