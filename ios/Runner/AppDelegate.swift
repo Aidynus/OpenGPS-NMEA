@@ -193,6 +193,9 @@ private final class JetourBlePeripheral: NSObject, CBPeripheralManagerDelegate, 
 
   func peripheralManager(_ peripheral: CBPeripheralManager, didUnsubscribeFrom characteristic: CBCharacteristic, by central: CBCentral) {
     subscribedCentralIDs.remove(central.identifier)
+    if subscribedCentralIDs.isEmpty {
+      pendingChunks.removeAll()
+    }
     emitState()
   }
 
