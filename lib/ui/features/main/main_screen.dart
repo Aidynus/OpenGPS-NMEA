@@ -99,15 +99,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
           ),
         ],
       ),
-      body: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onHorizontalDragEnd: (details) {
-          final velocity = details.primaryVelocity ?? 0;
-          if (velocity > 350 && Navigator.of(context).canPop()) {
-            Navigator.of(context).maybePop();
-          }
-        },
-        child: ListView(
+      body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           if (!settingsReady)
@@ -137,7 +129,6 @@ class _MainScreenState extends ConsumerState<MainScreen>
             const SizedBox(height: 8),
           ],
         ],
-      ),
       ),
     );
   }
