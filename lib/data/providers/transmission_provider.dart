@@ -12,11 +12,14 @@ import '../../domain/protocols/taip/taip_builder.dart';
 import '../../domain/transmission/abstract_transmitter.dart';
 import '../../domain/transmission/transmitter_factory.dart';
 import 'location_provider.dart';
+import '../../domain/protocols/nmea/jetour_nmea_builder.dart';
 
 // ── Protocol builders ─────────────────────────────────────────────────────────
 
 final nmeaBuilderProvider = Provider<NmeaBuilder>((ref) => const NmeaBuilder());
 final taipBuilderProvider = Provider<TaipBuilder>((ref) => const TaipBuilder());
+final jetourNmeaBuilderProvider =
+    Provider<JetourNmeaBuilder>((ref) => const JetourNmeaBuilder());
 
 /// Injectable factory provider. Override in tests with a mock factory.
 final transmitterFactoryProvider =
@@ -117,7 +120,8 @@ class TransmissionCoordinator extends Notifier<TransmissionState> {
         final settings = ref.read(appSettingsProvider);
         final nmeaBuilder = ref.read(nmeaBuilderProvider);
         final taipBuilder = ref.read(taipBuilderProvider);
-        _handlePosition(pos, settings, nmeaBuilder, taipBuilder);
+        final jetourNmeaBuilder = ref.read(jetourNmeaBuilderProvider);
+        _handlePosition(pos, settings, nmeaBuilder, taipBuilder, jetourNmeaBuilder);
       });
     });
 
@@ -191,11 +195,14 @@ class TransmissionCoordinator extends Notifier<TransmissionState> {
     AppSettings settings,
     NmeaBuilder nmeaBuilder,
     TaipBuilder taipBuilder,
+    JetourNmeaBuilder jetourNmeaBuilder,
   ) {
     try {
       final List<String> messages;
 
-      if (settings.protocol == ProtocolType.taip) {
+      if (settings.connectionMethodIndex == ConnectionMethodPreset.jetourBle) {
+        messages = jetourNmeaBuilder.build(pos);
+      } else if (settings.protocol == ProtocolType.taip) {
         messages = taipBuilder.buildAllEnabled(pos, settings);
       } else {
         messages = nmeaBuilder.buildAllEnabled(pos, settings);
