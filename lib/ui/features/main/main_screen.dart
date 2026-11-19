@@ -317,7 +317,11 @@ class _MainScreenState extends ConsumerState<MainScreen>
           Row(
             children: [
               Icon(
-                isActive ? Icons.bluetooth_connected : Icons.bluetooth_disabled,
+                !isActive
+                    ? Icons.bluetooth_disabled
+                    : clientCount > 0
+                        ? Icons.bluetooth_connected
+                        : Icons.bluetooth_searching,
                 size: 18,
                 color: color,
               ),
