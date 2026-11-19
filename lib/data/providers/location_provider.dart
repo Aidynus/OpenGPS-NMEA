@@ -244,6 +244,7 @@ final rawPositionStreamProvider = StreamProvider<GpsPosition>((ref) async* {
   final settings = ref.watch(appSettingsProvider);
   final stream = locationService.getPositionStream(
     accuracyPreset: settings.accuracyIndex,
+    allowBackgroundLocationUpdates: settings.operateInBackground,
   );
 
   await for (final position in stream) {
