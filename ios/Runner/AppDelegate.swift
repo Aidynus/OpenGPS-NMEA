@@ -18,7 +18,7 @@ import CoreBluetooth
 
     let methodChannel = FlutterMethodChannel(
       name: "com.jetourgps/ble",
-      binaryMessenger: engineBridge.binaryMessenger
+      binaryMessenger: engineBridge.applicationRegistrar.messenger()
     )
     let eventChannel = FlutterEventChannel(
       name: "com.jetourgps/ble/events",
