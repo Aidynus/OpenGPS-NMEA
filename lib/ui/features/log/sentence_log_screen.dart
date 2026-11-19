@@ -1,8 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:flutter/material.dart' as material show Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../l10n/tr.dart';
+import '../../core/theme/app_theme.dart';
 import '../../../data/providers/transmission_provider.dart';
 import '../../../domain/models/sentence_log_entry.dart';
 
@@ -15,21 +18,22 @@ class SentenceLogScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const DecoratedBox(decoration: AppGradients.appBar),
         title: const Text('Sentence Log'),
         actions: [
           if (log.isNotEmpty) ...[
             IconButton(
-              tooltip: 'Copy all',
+              tooltip: Tr.s('Copy all'),
               icon: const Icon(Icons.copy),
               onPressed: () => _copyAll(context, log),
             ),
             IconButton(
-              tooltip: 'Share',
+              tooltip: Tr.s('Share'),
               icon: const Icon(Icons.share),
               onPressed: () => _share(log),
             ),
             IconButton(
-              tooltip: 'Clear',
+              tooltip: Tr.s('Clear'),
               icon: const Icon(Icons.delete_outline),
               onPressed: () =>
                   ref.read(sentenceLogProvider.notifier).clear(),
@@ -119,7 +123,7 @@ class _SentenceRow extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
+              child: material.Text(
                 entry.sentence,
                 style: TextStyle(
                   fontSize: 12,

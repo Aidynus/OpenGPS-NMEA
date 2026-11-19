@@ -1,3 +1,5 @@
+Sideloaded build "JetourGPS" — iOS app by Маратов Айдын (based on OpenGPS-NMEA, MIT). Russian/English UI, colourful theme.
+
 # OpenGPS-NMEA
 
 Turn your iOS or Android device into a wireless GPS. Broadcast real-time **NMEA** or **TAIP** location data over **TCP**, **UDP**, **WebSocket**, or **BLE** to any compatible navigation software on your network or the internet.

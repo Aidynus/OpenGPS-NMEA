@@ -228,7 +228,7 @@ final rawPositionStreamProvider = StreamProvider<GpsPosition>((ref) async* {
   final hasPermission = await locationService.checkAndRequestPermission();
   if (!hasPermission) {
     ref.read(locationPermissionErrorProvider.notifier).state =
-        'Location permission denied. Grant access in Settings → OpenGPS-NMEA → Location.';
+        'Location permission denied. Grant access in Settings → JetourGPS → Location.';
     return;
   }
 

@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../l10n/tr.dart';
+import '../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../data/providers/location_provider.dart';
 import '../../../domain/models/app_settings.dart';
@@ -15,11 +17,12 @@ class ConnectionProfilesScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const DecoratedBox(decoration: AppGradients.appBar),
         title: const Text('Connection Profiles'),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: 'New profile',
+            tooltip: Tr.s('New profile'),
             onPressed: () => _showEditDialog(context, ref, null),
           ),
         ],
@@ -128,7 +131,8 @@ class _ProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final methodName = _connectionMethodName(profile.connectionMethodIndex);
+    final methodName =
+        Tr.s(_connectionMethodName(profile.connectionMethodIndex));
 
     return Card(
       child: ListTile(
@@ -145,11 +149,11 @@ class _ProfileCard extends StatelessWidget {
           children: [
             IconButton(
                 icon: const Icon(Icons.edit_outlined),
-                tooltip: 'Edit',
+                tooltip: Tr.s('Edit'),
                 onPressed: onEdit),
             IconButton(
                 icon: const Icon(Icons.delete_outline, color: Colors.red),
-                tooltip: 'Delete',
+                tooltip: Tr.s('Delete'),
                 onPressed: onDelete),
             FilledButton.tonal(
                 onPressed: onApply, child: const Text('Apply')),
@@ -257,15 +261,15 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
             children: [
               TextFormField(
                 controller: _nameCtrl,
-                decoration: const InputDecoration(labelText: 'Profile Name'),
+                decoration: InputDecoration(labelText: Tr.s('Profile Name')),
                 validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    (v == null || v.trim().isEmpty) ? Tr.s('Required') : null,
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
                 value: _methodIndex,
                 decoration:
-                    const InputDecoration(labelText: 'Connection Method'),
+                    InputDecoration(labelText: Tr.s('Connection Method')),
                 items: const [
                   DropdownMenuItem(
                       value: ConnectionMethodPreset.socket,
@@ -295,21 +299,21 @@ class _ProfileEditDialogState extends State<_ProfileEditDialog> {
               TextFormField(
                 controller: _ipCtrl,
                 decoration:
-                    const InputDecoration(labelText: 'Target IP Address'),
+                    InputDecoration(labelText: Tr.s('Target IP Address')),
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    (v == null || v.trim().isEmpty) ? Tr.s('Required') : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _portCtrl,
-                decoration: const InputDecoration(labelText: 'Port'),
+                decoration: InputDecoration(labelText: Tr.s('Port')),
                 keyboardType: TextInputType.number,
                 validator: (v) {
                   final n = int.tryParse(v ?? '');
                   if (n == null || n < 1 || n > 65535) {
-                    return 'Enter a valid port (1–65535)';
+                    return Tr.s('Enter a valid port (1–65535)');
                   }
                   return null;
                 },

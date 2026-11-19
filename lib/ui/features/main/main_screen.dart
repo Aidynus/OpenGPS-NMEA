@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../l10n/tr.dart';
+import '../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/coordinate_formatter.dart';
 import '../../../data/providers/location_provider.dart';
@@ -49,6 +51,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
     final bleEnabled =
         ref.watch(appSettingsProvider.select((s) => s.bleEnabled));
     final networkInfo = ref.watch(networkInfoProvider);
+    ref.watch(languageProvider); // rebuild tooltips on language change
     final txState = ref.watch(transmissionCoordinatorProvider);
     final settingsReady = ref.watch(settingsReadyProvider);
     final passwordHash =
@@ -63,7 +66,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
             content: Text(error),
             backgroundColor: Theme.of(context).colorScheme.error,
             action: SnackBarAction(
-              label: 'Dismiss',
+              label: Tr.s('Dismiss'),
               textColor: Colors.white,
               onPressed: () =>
                   ScaffoldMessenger.of(context).hideCurrentSnackBar(),
@@ -75,16 +78,17 @@ class _MainScreenState extends ConsumerState<MainScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('OpenGPS-NMEA'),
+        flexibleSpace: const DecoratedBox(decoration: AppGradients.appBar),
+        title: const Text('JetourGPS'),
         actions: [
           IconButton(
             icon: const Icon(Icons.terminal_outlined),
-            tooltip: 'Sentence log',
+            tooltip: Tr.s('Sentence log'),
             onPressed: () => context.push('/log'),
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
+            tooltip: Tr.s('Settings'),
             onPressed: () {
               if (passwordHash != null && passwordHash.isNotEmpty) {
                 context.push('/lock');
@@ -140,9 +144,22 @@ class _MainScreenState extends ConsumerState<MainScreen>
     };
 
     return Card(
-      child: Padding(
+      clipBehavior: Clip.antiAlias,
+      child: AnimatedContainer(
+        duration: Durations.medium2,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              statusColor.withAlpha(isActive ? 90 : 30),
+              statusColor.withAlpha(8),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Padding(
         padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
             AnimatedSwitcher(
@@ -151,7 +168,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
                 key: ValueKey(transmitterStatus),
                 isActive ? Icons.power_settings_new : Icons.power_off,
                 color: statusColor,
-                size: 32,
+                size: 40,
               ),
             ),
             const SizedBox(width: 16),
@@ -186,6 +203,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -403,7 +421,7 @@ class _PositionData extends StatelessWidget {
             if (pos.altitude != null)
               _ChipWidget(
                   label: 'Alt',
-                  value: '${pos.altitude!.toStringAsFixed(1)} m'),
+                  value: '${pos.altitude!.toStringAsFixed(1)} ${Tr.s('m')}'),
             ...speedWidgets,
             if (pos.heading != null)
               _ChipWidget(
@@ -426,30 +444,30 @@ class _PositionData extends StatelessWidget {
         return [
           _ChipWidget(
               label: 'Speed',
-              value: '${(speed * 1.94384).toStringAsFixed(1)} kn')
+              value: '${(speed * 1.94384).toStringAsFixed(1)} ${Tr.s('kn')}')
         ];
       case SpeedUnitPreset.kmh:
         return [
           _ChipWidget(
               label: 'Speed',
-              value: '${(speed * 3.6).toStringAsFixed(1)} km/h')
+              value: '${(speed * 3.6).toStringAsFixed(1)} ${Tr.s('km/h')}')
         ];
       case SpeedUnitPreset.mph:
         return [
           _ChipWidget(
               label: 'Speed',
-              value: '${(speed * 2.23694).toStringAsFixed(1)} mph')
+              value: '${(speed * 2.23694).toStringAsFixed(1)} ${Tr.s('mph')}')
         ];
       case SpeedUnitPreset.ms:
         return [
           _ChipWidget(
-              label: 'Speed', value: '${speed.toStringAsFixed(1)} m/s')
+              label: 'Speed', value: '${speed.toStringAsFixed(1)} ${Tr.s('m/s')}')
         ];
       default:
         return [
           _ChipWidget(
               label: 'Speed',
-              value: '${(speed * 1.94384).toStringAsFixed(1)} kn')
+              value: '${(speed * 1.94384).toStringAsFixed(1)} ${Tr.s('kn')}')
         ];
     }
   }
@@ -460,7 +478,7 @@ class _PositionData extends StatelessWidget {
       'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'
     ];
     final index = ((heading + 11.25) / 22.5).floor() % 16;
-    return cardinals[index];
+    return Tr.s(cardinals[index]);
   }
 }
 
@@ -566,7 +584,7 @@ class _ChipWidget extends StatelessWidget {
           style: DefaultTextStyle.of(context).style,
           children: [
             TextSpan(
-              text: '$label  ',
+              text: '${Tr.s(label)}  ',
               style: TextStyle(
                   fontSize: 11,
                   color: Theme.of(context)

@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../l10n/tr.dart';
+import '../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/password_hasher.dart';
 import '../../../core/utils/validators.dart';
@@ -16,19 +18,21 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(appSettingsProvider);
     final notifier = ref.read(appSettingsProvider.notifier);
+    ref.watch(languageProvider); // rebuild tooltips on language change
 
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const DecoratedBox(decoration: AppGradients.appBar),
         title: const Text('Settings'),
         actions: [
           IconButton(
             icon: const Icon(Icons.bookmark_border),
-            tooltip: 'Connection profiles',
+            tooltip: Tr.s('Connection profiles'),
             onPressed: () => context.push('/profiles'),
           ),
           IconButton(
             icon: const Icon(Icons.restore),
-            tooltip: 'Reset to defaults',
+            tooltip: Tr.s('Reset to defaults'),
             onPressed: () => _confirmReset(context, ref),
           ),
         ],
@@ -108,6 +112,7 @@ class _GeneralSection extends StatelessWidget {
             style: TextStyle(fontWeight: FontWeight.w600)),
         initiallyExpanded: true,
         children: [
+          const _LanguageRow(),
           _DropdownRow<int>(
             label: 'GPS Accuracy',
             value: settings.accuracyIndex,
@@ -211,6 +216,31 @@ class _GeneralSection extends StatelessWidget {
   }
 }
 
+// ── Language selector ─────────────────────────────────────────────────────────
+
+class _LanguageRow extends ConsumerWidget {
+  const _LanguageRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(languageProvider);
+    return _DropdownRow<String>(
+      label: 'Language',
+      value: mode,
+      items: const [
+        DropdownMenuItem(value: 'system', child: Text('System default')),
+        DropdownMenuItem(value: 'en', child: Text('English')),
+        DropdownMenuItem(value: 'ru', child: Text('Русский')),
+      ],
+      onChanged: (v) {
+        if (v == null) return;
+        ref.read(languageProvider.notifier).state = v;
+        Tr.setMode(v);
+      },
+    );
+  }
+}
+
 // ── Static threshold slider ───────────────────────────────────────────────────
 
 class _StaticThresholdSlider extends StatelessWidget {
@@ -230,7 +260,7 @@ class _StaticThresholdSlider extends StatelessWidget {
             children: [
               const Text('Static Threshold',
                   style: TextStyle(fontSize: 14)),
-              Text('${value.toStringAsFixed(1)} m',
+              Text('${value.toStringAsFixed(1)} ${Tr.s('m')}',
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
             ],
           ),
@@ -239,7 +269,7 @@ class _StaticThresholdSlider extends StatelessWidget {
             min: 0.5,
             max: 50.0,
             divisions: 99,
-            label: '${value.toStringAsFixed(1)} m',
+            label: '${value.toStringAsFixed(1)} ${Tr.s('m')}',
             onChanged: (v) => onChanged(double.parse(v.toStringAsFixed(1))),
           ),
         ],
@@ -588,8 +618,8 @@ class _PasswordSettingRowState extends State<_PasswordSettingRow> {
                   obscureText: _obscure,
                   decoration: InputDecoration(
                     isDense: true,
-                    labelText: isLocked ? 'Change password' : 'Set password',
-                    hintText: isLocked ? 'Enter new password' : 'Enter password',
+                    labelText: Tr.s(isLocked ? 'Change password' : 'Set password'),
+                    hintText: Tr.s(isLocked ? 'Enter new password' : 'Enter password'),
                     suffixIcon: IconButton(
                       icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
                       onPressed: () => setState(() => _obscure = !_obscure),
@@ -749,7 +779,7 @@ class _ValidatedTextFieldRowState extends State<_ValidatedTextFieldRow> {
               decoration: InputDecoration(
                 isDense: true,
                 hintText: widget.hint,
-                errorText: _error,
+                errorText: Tr.n(_error),
                 contentPadding: const EdgeInsets.symmetric(
                     horizontal: 8, vertical: 8),
               ),
@@ -837,7 +867,7 @@ class _ValidatedNumberFieldRowState
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: InputDecoration(
                 isDense: true,
-                errorText: _error,
+                errorText: Tr.n(_error),
                 contentPadding: const EdgeInsets.symmetric(
                     horizontal: 8, vertical: 8),
               ),

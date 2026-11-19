@@ -81,7 +81,7 @@ class OpenGpsNmeaApp extends ConsumerWidget {
     final isHighContrast = settings.highContrast;
 
     return MaterialApp.router(
-      title: 'OpenGPS-NMEA',
+      title: 'JetourGPS',
       debugShowCheckedModeBanner: false,
       // Light theme: low contrast or high contrast
       theme: isHighContrast ? AppTheme.highContrast : AppTheme.lowContrast,

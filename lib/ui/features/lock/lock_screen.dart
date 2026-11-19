@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../l10n/tr.dart';
 import '../../../core/utils/password_hasher.dart';
 import '../../../data/providers/location_provider.dart';
 
@@ -79,8 +80,8 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _submit(),
                   decoration: InputDecoration(
-                    labelText: 'Password',
-                    errorText: _errorText,
+                    labelText: Tr.s('Password'),
+                    errorText: Tr.n(_errorText),
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
                       icon: Icon(
