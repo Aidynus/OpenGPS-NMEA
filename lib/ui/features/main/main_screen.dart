@@ -292,31 +292,49 @@ class _MainScreenState extends ConsumerState<MainScreen>
             if (connectionMethodIndex == ConnectionMethodPreset.socket)
               _StatusRowWidget(
                   label: 'Port', value: socketPort.toString()),
-            _buildBleStatus(bleEnabled),
+            _buildBleStatus(
+              bleEnabled || connectionMethodIndex == ConnectionMethodPreset.jetourBle,
+              connectionMethodIndex == ConnectionMethodPreset.jetourBle,
+              txState.clientCount,
+              txState.isActive,
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBleStatus(bool bleEnabled) {
+  Widget _buildBleStatus(
+    bool bleEnabled,
+    bool jetourBleActive,
+    int clientCount,
+    bool isActive,
+  ) {
     if (!bleEnabled) return const SizedBox.shrink();
 
-    // BLE status is carried in connection status; use transmitter status
-    // for now since BLE peripheral is injected separately.
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 6),
+    final status = jetourBleActive
+        ? (isActive ? 'Advertising · $clientCount connected' : 'Off')
+        : 'BLE LNS mode';
+    final color = isActive ? Colors.blue : Colors.grey;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('BLE', style: TextStyle(color: Colors.grey)),
+          const Text('BLE', style: TextStyle(color: Colors.grey)),
           Row(
             children: [
-              Icon(Icons.bluetooth_searching, size: 18, color: Colors.blue),
-              SizedBox(width: 4),
-              Text('advertising',
-                  style: TextStyle(
-                      color: Colors.blue, fontWeight: FontWeight.w500)),
+              Icon(
+                isActive ? Icons.bluetooth_connected : Icons.bluetooth_disabled,
+                size: 18,
+                color: color,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                status,
+                style: TextStyle(color: color, fontWeight: FontWeight.w500),
+              ),
             ],
           ),
         ],
