@@ -38,9 +38,10 @@ class JetourBleTransmitter extends BaseTransmitter {
     );
 
     final started = await _methods.invokeMethod<bool>('start', {
-      'deviceName': settings.bleDeviceName.isEmpty
+      'deviceName': settings.bleDeviceName.trim().isEmpty ||
+              settings.bleDeviceName.trim() == 'OpenGPS-NMEA'
           ? DefaultSettings.defaultBleDeviceName
-          : settings.bleDeviceName,
+          : settings.bleDeviceName.trim(),
     });
     if (started != true) {
       await _eventSubscription?.cancel();
