@@ -47,6 +47,7 @@ abstract class ConnectionMethodPreset {
   static const int udpBroadcast = 4;
   static const int taipUdp = 5;
   static const int webSocket = 6;
+  static const int jetourBle = 7;
 }
 
 abstract class ProtocolPreset {
@@ -97,7 +98,7 @@ abstract class DefaultSettings {
   static const double staticThresholdMeters = 1.5;
 
   // ── BLE ─────────────────────────────────────────────────────────────
-  static const String defaultBleDeviceName = 'OpenGPS-NMEA';
+  static const String defaultBleDeviceName = 'JetourGPS';
 
   // ── Display ─────────────────────────────────────────────────────────
   static const int defaultSpeedUnitIndex = SpeedUnitPreset.knots;
